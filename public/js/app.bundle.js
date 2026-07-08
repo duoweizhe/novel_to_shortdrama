@@ -347,7 +347,7 @@ function ChapterManager({ project, onUpdate }) {
   const [editId, setEditId] = useS(null);
   const [editTitle, setEditTitle] = useS("");
   const [editContent, setEditContent] = useS("");
-  const [previewCh, setPreviewCh] = useS(null);
+  const [previewId, setPreviewId] = useS(null);
   const [collapsedGroups, setCollapsedGroups] = useS({});
   const [importOpen, setImportOpen] = useS(false);
   const [importText, setImportText] = useS("");
@@ -374,7 +374,7 @@ function ChapterManager({ project, onUpdate }) {
     setEditId(ch.id);
     setEditTitle(ch.title);
     setEditContent(ch.content || "");
-    setPreviewCh(null);
+    setPreviewId(null);
   };
   const saveEdit = async () => {
     if (!editId) return;
@@ -402,6 +402,44 @@ function ChapterManager({ project, onUpdate }) {
       toast(e.message, "error");
     }
   };
+  const togglePreview = (id) => setPreviewId((prev) => prev === id ? null : id);
+  const renderCh = (ch) => {
+    if (editId === ch.id) {
+      return /* @__PURE__ */ jsxs("div", { className: "chapter-item editing", children: [
+        /* @__PURE__ */ jsxs("div", { className: "chapter-edit", children: [
+          /* @__PURE__ */ jsx("input", { value: editTitle, onChange: (e) => setEditTitle(e.target.value), style: { flex: 1, padding: "4px 8px", border: "1px solid var(--ai-border)", borderRadius: 6, fontSize: 12 } }),
+          /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: saveEdit, children: "\u4FDD\u5B58" }),
+          /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setEditId(null), children: "\u53D6\u6D88" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "ai-field", style: { marginTop: 6 }, children: [
+          /* @__PURE__ */ jsx("textarea", { value: editContent, onChange: (e) => setEditContent(e.target.value), style: { minHeight: 100, width: "100%", border: "1px solid var(--ai-border)", borderRadius: 6, padding: 8, fontSize: 12, fontFamily: "inherit", background: "var(--ai-bg-content)" } }),
+          /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: saveEdit, style: { marginTop: 4 }, children: "\u4FDD\u5B58\u5185\u5BB9" })
+        ] })
+      ] });
+    }
+    return /* @__PURE__ */ jsxs("div", { className: "chapter-item", children: [
+      /* @__PURE__ */ jsxs("div", { className: "chapter-row", children: [
+        /* @__PURE__ */ jsx("span", { className: "ch-icon", children: previewId === ch.id ? "\u25BE" : "\u25B8" }),
+        /* @__PURE__ */ jsx("span", { className: "ch-title", onClick: () => togglePreview(ch.id), children: ch.title }),
+        /* @__PURE__ */ jsxs("span", { className: "ch-meta", children: [
+          (ch.content || "").length,
+          "\u5B57"
+        ] }),
+        /* @__PURE__ */ jsxs("span", { className: "ch-actions", children: [
+          ch.analysis?.characters && /* @__PURE__ */ jsx(Tag, { size: "small", color: "app-green", children: "\u5DF2\u5206\u6790" }),
+          /* @__PURE__ */ jsx("span", { className: "ch-btn", title: "\u7F16\u8F91", onClick: (e) => {
+            e.stopPropagation();
+            startEdit(ch);
+          }, children: "\u270F" }),
+          /* @__PURE__ */ jsx("span", { className: "ch-del", title: "\u5220\u9664", onClick: (e) => {
+            e.stopPropagation();
+            delChapter(ch.id);
+          }, children: "\u2715" })
+        ] })
+      ] }),
+      previewId === ch.id && /* @__PURE__ */ jsx("div", { className: "ch-preview", style: { whiteSpace: "pre-wrap", fontSize: 12, lineHeight: 1.7, color: "var(--ai-text-body)", background: "var(--ai-bg)", padding: 10, borderRadius: 6, marginTop: 4, maxHeight: 200, overflow: "auto", border: "1px solid var(--ai-border-light)" }, children: ch.content || "\uFF08\u65E0\u5185\u5BB9\uFF09" })
+    ] });
+  };
   return /* @__PURE__ */ jsxs("div", { className: "card", children: [
     /* @__PURE__ */ jsxs("div", { className: "card-head", children: [
       /* @__PURE__ */ jsxs("span", { className: "card-title", children: [
@@ -428,63 +466,8 @@ function ChapterManager({ project, onUpdate }) {
           ")"
         ] })
       ] }),
-      !collapsedGroups[gname] && chs.map((ch) => /* @__PURE__ */ jsx("div", { className: `chapter-item ${editId === ch.id ? "editing" : ""}`, children: editId === ch.id ? /* @__PURE__ */ jsxs("div", { className: "chapter-edit", children: [
-        /* @__PURE__ */ jsx("input", { value: editTitle, onChange: (e) => setEditTitle(e.target.value), style: { flex: 1, padding: "4px 8px", border: "1px solid var(--ai-border)", borderRadius: 6, fontSize: 12 } }),
-        /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: saveEdit, children: "\u4FDD\u5B58" }),
-        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setEditId(null), children: "\u53D6\u6D88" })
-      ] }) : /* @__PURE__ */ jsxs("div", { className: "chapter-row", children: [
-        /* @__PURE__ */ jsx("span", { className: "ch-icon", children: "\u{1F4C4}" }),
-        /* @__PURE__ */ jsx("span", { className: "ch-title", onClick: () => setPreviewCh(ch), children: ch.title }),
-        /* @__PURE__ */ jsxs("span", { className: "ch-meta", children: [
-          (ch.content || "").length,
-          "\u5B57"
-        ] }),
-        /* @__PURE__ */ jsxs("span", { className: "ch-actions", children: [
-          ch.analysis?.characters && /* @__PURE__ */ jsx(Tag, { size: "small", color: "app-green", children: "\u5DF2\u5206\u6790" }),
-          /* @__PURE__ */ jsx("span", { className: "ch-btn", title: "\u9884\u89C8", onClick: (e) => {
-            e.stopPropagation();
-            setPreviewCh(ch);
-          }, children: "\u{1F441}" }),
-          /* @__PURE__ */ jsx("span", { className: "ch-btn", title: "\u7F16\u8F91", onClick: (e) => {
-            e.stopPropagation();
-            startEdit(ch);
-          }, children: "\u270F" }),
-          /* @__PURE__ */ jsx("span", { className: "ch-del", title: "\u5220\u9664", onClick: (e) => {
-            e.stopPropagation();
-            delChapter(ch.id);
-          }, children: "\u2715" })
-        ] })
-      ] }) }, ch.id))
+      !collapsedGroups[gname] && chs.map(renderCh)
     ] }, gname)) }),
-    editId && /* @__PURE__ */ jsxs("div", { className: "ai-field", style: { marginTop: 10 }, children: [
-      /* @__PURE__ */ jsx("label", { children: "\u7AE0\u8282\u5185\u5BB9" }),
-      /* @__PURE__ */ jsx("textarea", { value: editContent, onChange: (e) => setEditContent(e.target.value), style: { minHeight: 120, width: "100%", border: "1px solid var(--ai-border)", borderRadius: 6, padding: 8, fontSize: 12, fontFamily: "inherit", background: "var(--ai-bg-content)" } }),
-      /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: saveEdit, style: { marginTop: 6 }, children: "\u4FDD\u5B58\u5185\u5BB9" })
-    ] }),
-    /* @__PURE__ */ jsxs(
-      Modal,
-      {
-        open: !!previewCh,
-        title: previewCh?.title || "\u7AE0\u8282\u9884\u89C8",
-        onClose: () => setPreviewCh(null),
-        okText: "\u7F16\u8F91",
-        cancelText: "\u5173\u95ED",
-        onOk: () => {
-          if (previewCh) startEdit(previewCh);
-        },
-        width: 620,
-        children: [
-          /* @__PURE__ */ jsx("div", { style: { maxHeight: "50vh", overflow: "auto", whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.7, color: "var(--ai-text-body)", background: "var(--ai-bg)", padding: 12, borderRadius: 8 }, children: previewCh?.content || "\uFF08\u65E0\u5185\u5BB9\uFF09" }),
-          /* @__PURE__ */ jsxs("div", { style: { marginTop: 8, fontSize: 11, color: "var(--ai-text-muted)" }, children: [
-            "\u5206\u7EC4\uFF1A",
-            previewCh?.group || "\u672A\u5206\u7EC4",
-            " \xB7 ",
-            (previewCh?.content || "").length,
-            " \u5B57"
-          ] })
-        ]
-      }
-    ),
     /* @__PURE__ */ jsxs(Modal, { open: addOpen, title: "\u6DFB\u52A0\u7AE0\u8282", onClose: () => setAddOpen(false), onOk: addChapter, okText: "\u6DFB\u52A0", cancelText: "\u53D6\u6D88", children: [
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
         /* @__PURE__ */ jsx("label", { children: "\u5377/\u5206\u7EC4\uFF08\u53EF\u9009\uFF09" }),

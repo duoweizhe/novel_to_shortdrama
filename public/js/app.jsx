@@ -179,7 +179,7 @@ function ChapterManager({ project, onUpdate }) {
   const [editId, setEditId] = useS(null);
   const [editTitle, setEditTitle] = useS('');
   const [editContent, setEditContent] = useS('');
-  const [previewCh, setPreviewCh] = useS(null);
+  const [previewId, setPreviewId] = useS(null);
   const [collapsedGroups, setCollapsedGroups] = useS({});
   const [importOpen, setImportOpen] = useS(false);
   const [importText, setImportText] = useS('');
@@ -195,7 +195,7 @@ function ChapterManager({ project, onUpdate }) {
     setAddOpen(false); setNewTitle(''); setNewContent(''); setNewGroup('');
     toast('章节已添加', 'ok');
   };
-  const startEdit = (ch) => { setEditId(ch.id); setEditTitle(ch.title); setEditContent(ch.content || ''); setPreviewCh(null); };
+  const startEdit = (ch) => { setEditId(ch.id); setEditTitle(ch.title); setEditContent(ch.content || ''); setPreviewId(null); };
   const saveEdit = async () => {
     if (!editId) return;
     await api.updateChapter(project.id, editId, { title: editTitle, content: editContent });
@@ -207,6 +207,44 @@ function ChapterManager({ project, onUpdate }) {
     if (!importText.trim()) return;
     try { const r = await api.importChapters(project.id, importText); toast(`已导入 ${r.imported} 章`, 'ok'); const p = await api.getProject(project.id); onUpdate({ chapters: p.chapters }); setImportOpen(false); setImportText(''); }
     catch (e) { toast(e.message, 'error'); }
+  };
+  const togglePreview = (id) => setPreviewId(prev => prev === id ? null : id);
+
+  const renderCh = (ch) => {
+    if (editId === ch.id) {
+      return (
+        <div className="chapter-item editing">
+          <div className="chapter-edit">
+            <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--ai-border)', borderRadius: 6, fontSize: 12 }} />
+            <Button size="small" type="primary" onClick={saveEdit}>保存</Button>
+            <Button size="small" onClick={() => setEditId(null)}>取消</Button>
+          </div>
+          <div className="ai-field" style={{ marginTop: 6 }}>
+            <textarea value={editContent} onChange={e => setEditContent(e.target.value)} style={{ minHeight: 100, width: '100%', border: '1px solid var(--ai-border)', borderRadius: 6, padding: 8, fontSize: 12, fontFamily: 'inherit', background: 'var(--ai-bg-content)' }} />
+            <Button size="small" type="primary" onClick={saveEdit} style={{ marginTop: 4 }}>保存内容</Button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="chapter-item">
+        <div className="chapter-row">
+          <span className="ch-icon">{previewId === ch.id ? '▾' : '▸'}</span>
+          <span className="ch-title" onClick={() => togglePreview(ch.id)}>{ch.title}</span>
+          <span className="ch-meta">{(ch.content || '').length}字</span>
+          <span className="ch-actions">
+            {ch.analysis?.characters && <Tag size="small" color="app-green">已分析</Tag>}
+            <span className="ch-btn" title="编辑" onClick={(e) => { e.stopPropagation(); startEdit(ch); }}>✏</span>
+            <span className="ch-del" title="删除" onClick={(e) => { e.stopPropagation(); delChapter(ch.id); }}>✕</span>
+          </span>
+        </div>
+        {previewId === ch.id && (
+          <div className="ch-preview" style={{ whiteSpace: 'pre-wrap', fontSize: 12, lineHeight: 1.7, color: 'var(--ai-text-body)', background: 'var(--ai-bg)', padding: 10, borderRadius: 6, marginTop: 4, maxHeight: 200, overflow: 'auto', border: '1px solid var(--ai-border-light)' }}>
+            {ch.content || '（无内容）'}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -232,51 +270,11 @@ function ChapterManager({ project, onUpdate }) {
                 <span className="group-name">{gname}</span>
                 <span className="group-count">({chs.length})</span>
               </div>
-              {!collapsedGroups[gname] && chs.map(ch => (
-                <div key={ch.id} className={`chapter-item ${editId === ch.id ? 'editing' : ''}`}>
-                  {editId === ch.id ? (
-                    <div className="chapter-edit">
-                      <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--ai-border)', borderRadius: 6, fontSize: 12 }} />
-                      <Button size="small" type="primary" onClick={saveEdit}>保存</Button>
-                      <Button size="small" onClick={() => setEditId(null)}>取消</Button>
-                    </div>
-                  ) : (
-                    <div className="chapter-row">
-                      <span className="ch-icon">📄</span>
-                      <span className="ch-title" onClick={() => setPreviewCh(ch)}>{ch.title}</span>
-                      <span className="ch-meta">{(ch.content || '').length}字</span>
-                      <span className="ch-actions">
-                        {ch.analysis?.characters && <Tag size="small" color="app-green">已分析</Tag>}
-                        <span className="ch-btn" title="预览" onClick={(e) => { e.stopPropagation(); setPreviewCh(ch); }}>👁</span>
-                        <span className="ch-btn" title="编辑" onClick={(e) => { e.stopPropagation(); startEdit(ch); }}>✏</span>
-                        <span className="ch-del" title="删除" onClick={(e) => { e.stopPropagation(); delChapter(ch.id); }}>✕</span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))}
+              {!collapsedGroups[gname] && chs.map(renderCh)}
             </div>
           ))}
         </div>
       )}
-      {editId && (
-        <div className="ai-field" style={{ marginTop: 10 }}>
-          <label>章节内容</label>
-          <textarea value={editContent} onChange={e => setEditContent(e.target.value)} style={{ minHeight: 120, width: '100%', border: '1px solid var(--ai-border)', borderRadius: 6, padding: 8, fontSize: 12, fontFamily: 'inherit', background: 'var(--ai-bg-content)' }} />
-          <Button size="small" type="primary" onClick={saveEdit} style={{ marginTop: 6 }}>保存内容</Button>
-        </div>
-      )}
-
-      {/* 章节预览 Modal */}
-      <Modal open={!!previewCh} title={previewCh?.title || '章节预览'} onClose={() => setPreviewCh(null)} okText="编辑" cancelText="关闭"
-        onOk={() => { if (previewCh) startEdit(previewCh); }} width={620}>
-        <div style={{ maxHeight: '50vh', overflow: 'auto', whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.7, color: 'var(--ai-text-body)', background: 'var(--ai-bg)', padding: 12, borderRadius: 8 }}>
-          {previewCh?.content || '（无内容）'}
-        </div>
-        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--ai-text-muted)' }}>
-          分组：{previewCh?.group || '未分组'} · {(previewCh?.content || '').length} 字
-        </div>
-      </Modal>
 
       <Modal open={addOpen} title="添加章节" onClose={() => setAddOpen(false)} onOk={addChapter} okText="添加" cancelText="取消">
         <div className="ai-field"><label>卷/分组（可选）</label><Input value={newGroup} onChange={e => setNewGroup(e.target.value)} placeholder="如：第一卷" /></div>
