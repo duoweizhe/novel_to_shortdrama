@@ -395,8 +395,7 @@ export const EXAMPLE_PROJECT = {
 - **整体风格**：电影感冷调悬疑，参考《咒怨》《午夜凶铃》的密闭空间恐怖美学
 - **色调体系**：主色冷蓝(#1a2a3e)/惨白(#f0f0e8)，辅色暖黄(#d4a843)街灯点缀，点缀血红(#8b0000)危险暗示
 - **参考作品**：《咒怨》（密闭空间镜面恐怖）、《信条》（冷调反转质感）、《午夜凶铃》（日常空间中的超自然恐怖）
-- **通用风格后缀**：cinematic lighting, 8k, cold tone, film grain, shallow depth of field
-- **通用负面后缀**：cartoon, anime, warm colors, bright daylight, oversaturated
+- **通用画面要求**：cinematic lighting, 8k, cold tone, film grain, shallow depth of field
 
 ### 1. 角色立绘
 为每个主要角色生成：
