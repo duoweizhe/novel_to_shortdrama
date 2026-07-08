@@ -78,7 +78,7 @@ function NewProjectModal({ open, onClose, onCreate }) {
   useE(() => { if (open) { setName(''); setStyle('cinematic'); } }, [open]);
   if (!open) return null;
   return (
-    <Modal open={open} title="🎬 新建项目" onClose={onClose} okText="创建" cancelText="取消"
+    <Modal open={open} title="🎬 新建项目" typewriter={false} onClose={onClose} okText="创建" cancelText="取消"
       onOk={() => { if (!name.trim()) { toast('请输入项目名', 'error'); return; } onCreate(name.trim(), style); }}>
       <div className="ai-field">
         <label>项目名称</label>
@@ -143,7 +143,7 @@ function SettingsModal({ open, onClose, onSaved }) {
   );
 
   return (
-    <Modal open={open} title="⚙️ 设置" onClose={onClose} onOk={save} okText="保存" cancelText="取消" width={720}>
+    <Modal open={open} title="⚙️ 设置" typewriter={false} onClose={onClose} onOk={save} okText="保存" cancelText="取消" width={720}>
       <div className="settings-body">
         <div className="card-title">📚 LLM 文本模型</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -276,12 +276,12 @@ function ChapterManager({ project, onUpdate }) {
         </div>
       )}
 
-      <Modal open={addOpen} title="添加章节" onClose={() => setAddOpen(false)} onOk={addChapter} okText="添加" cancelText="取消">
+      <Modal open={addOpen} title="添加章节" typewriter={false} onClose={() => setAddOpen(false)} onOk={addChapter} okText="添加" cancelText="取消">
         <div className="ai-field"><label>卷/分组（可选）</label><Input value={newGroup} onChange={e => setNewGroup(e.target.value)} placeholder="如：第一卷" /></div>
         <div className="ai-field"><label>章节标题</label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="如：第一章 初遇" /></div>
         <div className="ai-field"><label>章节内容</label><textarea value={newContent} onChange={e => setNewContent(e.target.value)} style={{ minHeight: 120, width: '100%', border: '2px solid var(--ai-border)', borderRadius: 8, padding: 8, fontSize: 12, fontFamily: 'inherit' }} /></div>
       </Modal>
-      <Modal open={importOpen} title="批量分章导入" onClose={() => setImportOpen(false)} onOk={doImport} okText="导入" cancelText="取消" width={620}>
+      <Modal open={importOpen} title="批量分章导入" typewriter={false} onClose={() => setImportOpen(false)} onOk={doImport} okText="导入" cancelText="取消" width={620}>
         <p style={{ fontSize: 12, color: 'var(--ai-text-muted)', marginBottom: 8 }}>粘贴全文，系统按"第X章/Chapter N"自动切分为多个章节。</p>
         <textarea value={importText} onChange={e => setImportText(e.target.value)} style={{ width: '100%', minHeight: 220, border: '2px solid var(--ai-border)', borderRadius: 8, padding: 10, fontSize: 13, fontFamily: 'inherit' }} />
       </Modal>

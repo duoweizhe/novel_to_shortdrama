@@ -231,6 +231,7 @@ function NewProjectModal({ open, onClose, onCreate }) {
     {
       open,
       title: "\u{1F3AC} \u65B0\u5EFA\u9879\u76EE",
+      typewriter: false,
       onClose,
       okText: "\u521B\u5EFA",
       cancelText: "\u53D6\u6D88",
@@ -326,7 +327,7 @@ function SettingsModal({ open, onClose, onSaved }) {
     ] }),
     testRes[p.id] && /* @__PURE__ */ jsx("div", { style: { flexBasis: "100%", fontSize: 11, color: testRes[p.id].ok ? "var(--ai-success)" : "var(--ai-error)" }, children: testRes[p.id].ok ? "\u2713 \u8FDE\u63A5\u6210\u529F" + (testRes[p.id].reply ? "" : "") : "\u2717 " + (testRes[p.id].error || "\u5931\u8D25") })
   ] }, p.id);
-  return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u8BBE\u7F6E", onClose, onOk: save, okText: "\u4FDD\u5B58", cancelText: "\u53D6\u6D88", width: 720, children: /* @__PURE__ */ jsxs("div", { className: "settings-body", children: [
+  return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u8BBE\u7F6E", typewriter: false, onClose, onOk: save, okText: "\u4FDD\u5B58", cancelText: "\u53D6\u6D88", width: 720, children: /* @__PURE__ */ jsxs("div", { className: "settings-body", children: [
     /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4DA} LLM \u6587\u672C\u6A21\u578B" }),
     /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type !== "media").map((p) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: p.name }, p.id)) }),
     llmProviders.map((p) => renderProvider(p, false)),
@@ -468,7 +469,7 @@ function ChapterManager({ project, onUpdate }) {
       ] }),
       !collapsedGroups[gname] && chs.map(renderCh)
     ] }, gname)) }),
-    /* @__PURE__ */ jsxs(Modal, { open: addOpen, title: "\u6DFB\u52A0\u7AE0\u8282", onClose: () => setAddOpen(false), onOk: addChapter, okText: "\u6DFB\u52A0", cancelText: "\u53D6\u6D88", children: [
+    /* @__PURE__ */ jsxs(Modal, { open: addOpen, title: "\u6DFB\u52A0\u7AE0\u8282", typewriter: false, onClose: () => setAddOpen(false), onOk: addChapter, okText: "\u6DFB\u52A0", cancelText: "\u53D6\u6D88", children: [
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
         /* @__PURE__ */ jsx("label", { children: "\u5377/\u5206\u7EC4\uFF08\u53EF\u9009\uFF09" }),
         /* @__PURE__ */ jsx(Input, { value: newGroup, onChange: (e) => setNewGroup(e.target.value), placeholder: "\u5982\uFF1A\u7B2C\u4E00\u5377" })
@@ -482,7 +483,7 @@ function ChapterManager({ project, onUpdate }) {
         /* @__PURE__ */ jsx("textarea", { value: newContent, onChange: (e) => setNewContent(e.target.value), style: { minHeight: 120, width: "100%", border: "2px solid var(--ai-border)", borderRadius: 8, padding: 8, fontSize: 12, fontFamily: "inherit" } })
       ] })
     ] }),
-    /* @__PURE__ */ jsxs(Modal, { open: importOpen, title: "\u6279\u91CF\u5206\u7AE0\u5BFC\u5165", onClose: () => setImportOpen(false), onOk: doImport, okText: "\u5BFC\u5165", cancelText: "\u53D6\u6D88", width: 620, children: [
+    /* @__PURE__ */ jsxs(Modal, { open: importOpen, title: "\u6279\u91CF\u5206\u7AE0\u5BFC\u5165", typewriter: false, onClose: () => setImportOpen(false), onOk: doImport, okText: "\u5BFC\u5165", cancelText: "\u53D6\u6D88", width: 620, children: [
       /* @__PURE__ */ jsx("p", { style: { fontSize: 12, color: "var(--ai-text-muted)", marginBottom: 8 }, children: '\u7C98\u8D34\u5168\u6587\uFF0C\u7CFB\u7EDF\u6309"\u7B2CX\u7AE0/Chapter N"\u81EA\u52A8\u5207\u5206\u4E3A\u591A\u4E2A\u7AE0\u8282\u3002' }),
       /* @__PURE__ */ jsx("textarea", { value: importText, onChange: (e) => setImportText(e.target.value), style: { width: "100%", minHeight: 220, border: "2px solid var(--ai-border)", borderRadius: 8, padding: 10, fontSize: 13, fontFamily: "inherit" } })
     ] })
