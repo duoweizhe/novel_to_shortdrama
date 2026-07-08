@@ -105,6 +105,8 @@ button { font-family: inherit; }
 .ch-actions { display: flex; align-items: center; gap: 4px; }
 .ch-del { font-size: 11px; color: var(--ai-text-disabled); cursor: pointer; padding: 0 4px; }
 .ch-del:hover { color: var(--ai-error); }
+.ch-btn { font-size: 12px; color: var(--ai-text-secondary); cursor: pointer; padding: 0 4px; }
+.ch-btn:hover { color: var(--ai-primary); }
 .chapter-edit { display: flex; gap: 6px; align-items: center; padding: 4px 8px; }
 
 /* Character 4-view */
@@ -264,3 +266,45 @@ table.shots .num { width: 40px; text-align: center; }
 .module-chip:hover { border-color: var(--ai-border-hover); }
 .module-chip.active { background: var(--ai-primary); color: #fff; border-color: var(--ai-primary); }
 .module-chip .icon { font-size: 18px; display: block; margin-bottom: 2px; }
+
+/* ===== 覆盖 animal-island-ui Modal 为规则形状 ===== */
+[class*="animal-modalClipped"] {
+  clip-path: none !important;
+  border-radius: 16px !important;
+  border: 2px solid var(--ai-border) !important;
+  padding: 20px 24px !important;
+  background: var(--ai-bg-card) !important;
+}
+[class*="animal-modal-d0zyM"] {
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18) !important;
+}
+[class*="animal-title-s6pv3"], [class*="animal-title-"][class*="modal"] {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: var(--ai-text) !important;
+}
+[class*="animal-body--aiyx"], [class*="animal-body-"][class*="modal"] {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: var(--ai-text-body) !important;
+  line-height: 1.6 !important;
+}
+[class*="animal-footer-btn-primary"] {
+  background: var(--ai-primary) !important;
+  border-color: var(--ai-primary) !important;
+  color: #fff !important;
+  border-radius: 10px !important;
+}
+[class*="animal-footer-btn-"]:not([class*="primary"]) {
+  border-radius: 10px !important;
+  color: var(--ai-text) !important;
+}
+[class*="animal-close-"] {
+  font-size: 20px !important;
+}
+/* 模态遮罩 */
+[class*="animal-mask-"] {
+  background: rgba(40,30,20,.45) !important;
+}

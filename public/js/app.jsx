@@ -179,12 +179,12 @@ function ChapterManager({ project, onUpdate }) {
   const [editId, setEditId] = useS(null);
   const [editTitle, setEditTitle] = useS('');
   const [editContent, setEditContent] = useS('');
+  const [previewCh, setPreviewCh] = useS(null);
   const [collapsedGroups, setCollapsedGroups] = useS({});
   const [importOpen, setImportOpen] = useS(false);
   const [importText, setImportText] = useS('');
 
   const chapters = project?.chapters || [];
-  // 分组：按 group 字段，空 group 归为"未分组"
   const groups = {};
   chapters.forEach(ch => { const g = ch.group || '未分组'; (groups[g] = groups[g] || []).push(ch); });
 
@@ -195,18 +195,14 @@ function ChapterManager({ project, onUpdate }) {
     setAddOpen(false); setNewTitle(''); setNewContent(''); setNewGroup('');
     toast('章节已添加', 'ok');
   };
+  const startEdit = (ch) => { setEditId(ch.id); setEditTitle(ch.title); setEditContent(ch.content || ''); setPreviewCh(null); };
   const saveEdit = async () => {
     if (!editId) return;
     await api.updateChapter(project.id, editId, { title: editTitle, content: editContent });
     onUpdate({ chapters: chapters.map(c => c.id === editId ? { ...c, title: editTitle, content: editContent } : c) });
     setEditId(null); toast('已保存', 'ok');
   };
-  const delChapter = async (id) => {
-    if (!confirm('删除该章节？')) return;
-    await api.deleteChapter(project.id, id);
-    onUpdate({ chapters: chapters.filter(c => c.id !== id) });
-    toast('已删除', 'ok');
-  };
+  const delChapter = async (id) => { if (!confirm('删除该章节？')) return; await api.deleteChapter(project.id, id); onUpdate({ chapters: chapters.filter(c => c.id !== id) }); toast('已删除', 'ok'); };
   const doImport = async () => {
     if (!importText.trim()) return;
     try { const r = await api.importChapters(project.id, importText); toast(`已导入 ${r.imported} 章`, 'ok'); const p = await api.getProject(project.id); onUpdate({ chapters: p.chapters }); setImportOpen(false); setImportText(''); }
@@ -245,13 +241,15 @@ function ChapterManager({ project, onUpdate }) {
                       <Button size="small" onClick={() => setEditId(null)}>取消</Button>
                     </div>
                   ) : (
-                    <div className="chapter-row" onClick={() => { setEditId(ch.id); setEditTitle(ch.title); setEditContent(ch.content || ''); }}>
+                    <div className="chapter-row">
                       <span className="ch-icon">📄</span>
-                      <span className="ch-title">{ch.title}</span>
+                      <span className="ch-title" onClick={() => setPreviewCh(ch)}>{ch.title}</span>
                       <span className="ch-meta">{(ch.content || '').length}字</span>
                       <span className="ch-actions">
                         {ch.analysis?.characters && <Tag size="small" color="app-green">已分析</Tag>}
-                        <span className="ch-del" onClick={(e) => { e.stopPropagation(); delChapter(ch.id); }}>✕</span>
+                        <span className="ch-btn" title="预览" onClick={(e) => { e.stopPropagation(); setPreviewCh(ch); }}>👁</span>
+                        <span className="ch-btn" title="编辑" onClick={(e) => { e.stopPropagation(); startEdit(ch); }}>✏</span>
+                        <span className="ch-del" title="删除" onClick={(e) => { e.stopPropagation(); delChapter(ch.id); }}>✕</span>
                       </span>
                     </div>
                   )}
@@ -269,6 +267,17 @@ function ChapterManager({ project, onUpdate }) {
         </div>
       )}
 
+      {/* 章节预览 Modal */}
+      <Modal open={!!previewCh} title={previewCh?.title || '章节预览'} onClose={() => setPreviewCh(null)} okText="编辑" cancelText="关闭"
+        onOk={() => { if (previewCh) startEdit(previewCh); }} width={620}>
+        <div style={{ maxHeight: '50vh', overflow: 'auto', whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.7, color: 'var(--ai-text-body)', background: 'var(--ai-bg)', padding: 12, borderRadius: 8 }}>
+          {previewCh?.content || '（无内容）'}
+        </div>
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--ai-text-muted)' }}>
+          分组：{previewCh?.group || '未分组'} · {(previewCh?.content || '').length} 字
+        </div>
+      </Modal>
+
       <Modal open={addOpen} title="添加章节" onClose={() => setAddOpen(false)} onOk={addChapter} okText="添加" cancelText="取消">
         <div className="ai-field"><label>卷/分组（可选）</label><Input value={newGroup} onChange={e => setNewGroup(e.target.value)} placeholder="如：第一卷" /></div>
         <div className="ai-field"><label>章节标题</label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="如：第一章 初遇" /></div>
@@ -283,7 +292,7 @@ function ChapterManager({ project, onUpdate }) {
 }
 
 // ============ Input Panel ============
-function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters }) {
+function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, analysisSource, setAnalysisSource }) {
   const [content, setContent] = useS(project?.content || '');
   const [selectedModules, setSelectedModules] = useS(MODULES.map(m => m.id));
   const [status, setStatus] = useS('');
@@ -308,6 +317,8 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
     setPreprocessing(false);
   };
 
+  const chapters = project?.chapters || [];
+
   return (
     <div className="input-panel">
       <div className="card">
@@ -327,6 +338,24 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
         </div>
       </div>
 
+      {hasChapters && (
+        <div className="card">
+          <div className="card-head"><span className="card-title">🎯 分析范围</span></div>
+          <select value={analysisSource.mode} onChange={e => setAnalysisSource(s => ({ ...s, mode: e.target.value, chId: '' }))} style={{ width: '100%', padding: '6px 10px', border: '2px solid var(--ai-border)', borderRadius: 8, background: 'var(--ai-bg-content)', fontSize: 13, marginBottom: 6 }}>
+            <option value="chapters">全部章节（{chapters.length}章拼接）</option>
+            <option value="chapter">单章分析</option>
+            <option value="content">源文本（不使用章节）</option>
+          </select>
+          {analysisSource.mode === 'chapter' && (
+            <select value={analysisSource.chId} onChange={e => setAnalysisSource(s => ({ ...s, chId: e.target.value }))} style={{ width: '100%', padding: '6px 10px', border: '2px solid var(--ai-border)', borderRadius: 8, background: 'var(--ai-bg-content)', fontSize: 13 }}>
+              <option value="">请选择章节...</option>
+              {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          )}
+          <p style={{ fontSize: 11, color: 'var(--ai-primary)', marginTop: 6 }}>💡 分析时知识库自动注入上下文，确保跨章人物/场景一致。</p>
+        </div>
+      )}
+
       <div className="card">
         <div className="card-head"><span className="card-title">📋 分析模块</span><span style={{ fontSize: 11, color: 'var(--ai-text-muted)' }}>已选 {selectedModules.length}</span></div>
         <div className="module-grid">
@@ -343,14 +372,13 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
         <div className="gen-actions"><Button block loading={preprocessing} onClick={doPreprocess}>🔍 预处理</Button></div>
         <div className="gen-actions"><Button block type="primary" loading={generating} onClick={() => onAnalyzeAll(selectedModules)}>🚀 一键全部分析</Button></div>
         <div className="status-bar info">{status}</div>
-        {hasChapters && <p style={{ fontSize: 11, color: 'var(--ai-primary)', marginTop: 6 }}>💡 已启用章节管理，分析时知识库将跨章累积，自动保持人物/场景一致。</p>}
       </div>
     </div>
   );
 }
 
 // ============ Result Panel ============
-function ResultPanel({ project, onUpdate, styles, onAnalyzeAll }) {
+function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }) {
   const [tab, setTab] = useS('characters');
   const [streaming, setStreaming] = useS('');
   const [generating, setGenerating] = useS(false);
@@ -365,15 +393,13 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll }) {
 
   const analyzeOne = async (type) => {
     if (!project?.content?.trim() && !project?.chapters?.length) { toast('请先输入内容或章节', 'error'); return; }
-    setGenerating(true); setStreaming(''); setProgress(`正在生成${MODULES.find(m => m.id === type)?.name}...`); setProgressPct(10);
-    const content = project.chapters?.length ? project.chapters.map(c => `## ${c.title}\n${c.content}`).join('\n\n') : project.content;
+    const content = analysisSource;
+    setGenerating(true); setStreaming(''); setProgress(`正在生成${MODULES.find(m => m.id === type)?.name}，请稍候...`); setProgressPct(30);
     const ac = new AbortController(); abortRef.current = ac;
     try {
-      let mdBuf = '';
       await api.analyze({ type, content, visualStyle: project.style, projectId: project.id, characters, scenes }, (d) => {
-        if (d.status === 'start') setProgressPct(30);
-        if (d.status === 'chunk') { mdBuf += d.content; setStreaming(mdBuf); setProgressPct(70); }
-        if (d.status === 'done') { onUpdate({ results: { ...results, [type]: d.result } }); setStreaming(''); setProgress(`${MODULES.find(m => m.id === type)?.name} 完成`); setProgressPct(100); toast('生成完成', 'ok'); setTimeout(() => setProgressPct(0), 1500); }
+        if (d.status === 'start') setProgressPct(40);
+        if (d.status === 'done') { onUpdate({ results: { ...results, [type]: d.result } }); setProgress(`${MODULES.find(m => m.id === type)?.name} 完成`); setProgressPct(100); toast('生成完成', 'ok'); setTimeout(() => { setProgress(''); setProgressPct(0); }, 1500); }
         if (d.status === 'error') { setProgress('错误: ' + d.error); toast('生成失败', 'error'); }
       }, ac.signal);
     } catch (e) { if (e.name !== 'AbortError') { setProgress('失败: ' + e.message); toast('生成失败', 'error'); } }
@@ -408,11 +434,10 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll }) {
         </div>
       </div>
       <div className="result-content">
-        {(generating || streaming) && (
+        {generating && (
           <div style={{ marginBottom: 12, padding: 10, background: 'var(--ai-primary-bg)', borderRadius: 8, fontSize: 13 }}>
             {progress}
             {progressPct > 0 && <div className="progress-line"><div className="fill" style={{ width: progressPct + '%' }} /></div>}
-            {streaming && <div className="md-body" style={{ marginTop: 8, maxHeight: 300, overflow: 'auto' }} dangerouslySetInnerHTML={{ __html: renderMd(streaming) }} />}
           </div>
         )}
         {tab === 'characters' && <CharactersView characters={characters} onUpdate={(chars) => onUpdate({ results: { ...results, characters: { characters: chars } } })} />}
@@ -427,16 +452,10 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll }) {
   );
 }
 
-// ============ Characters View (4视图) ============
+// ============ Characters View (4视图合一单图) ============
 function CharactersView({ characters, onUpdate }) {
-  if (!characters.length) return <Empty tip="生成角色设定后将显示，含面部/正面/侧面/背面4视图Prompt" />;
+  if (!characters.length) return <Empty tip="生成角色设定后将显示，每角色含一张4视图设定图Prompt" />;
   const baseFields = [['role','叙事功能'],['gender','性别'],['age','年龄'],['appearance','外貌'],['personality','性格'],['costume','服装道具'],['arc','角色弧光']];
-  const viewFields = [
-    ['facePromptZh','面部特写(中)','facePromptEn','面部特写(EN)'],
-    ['frontPromptZh','正面全身(中)','frontPromptEn','正面全身(EN)'],
-    ['sidePromptZh','侧面全身(中)','sidePromptEn','侧面全身(EN)'],
-    ['backPromptZh','背面全身(中)','backPromptEn','背面全身(EN)'],
-  ];
   const updateField = (i, k, v) => { const c = [...characters]; c[i] = { ...c[i], [k]: v }; onUpdate(c); };
   return (
     <div className="grid-cards">
@@ -450,13 +469,9 @@ function CharactersView({ characters, onUpdate }) {
             <div key={k} className="field"><label>{label}</label><input value={c[k] || ''} onChange={e => updateField(i, k, e.target.value)} /></div>
           ))}
           <div className="view-prompts" style={{ borderTop: '1px dashed var(--ai-border)', paddingTop: 8, marginTop: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ai-text)', marginBottom: 6 }}>📐 4视图生图 Prompt</div>
-            {viewFields.map(([kZh, lZh, kEn, lEn]) => (
-              <div key={kZh} className="view-row">
-                <div className="field"><label>{lZh}</label><textarea className="prompt" value={c[kZh] || ''} onChange={e => updateField(i, kZh, e.target.value)} /></div>
-                <div className="field"><label>{lEn}</label><textarea className="prompt" value={c[kEn] || ''} onChange={e => updateField(i, kEn, e.target.value)} /></div>
-              </div>
-            ))}
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ai-text)', marginBottom: 6 }}>📐 角色设定图 Prompt（单图含4视图：面部特写/正面/侧面/背面全身）</div>
+            <div className="field"><label>设定图 Prompt（中文）</label><textarea className="prompt" value={c.imagePromptZh || ''} onChange={e => updateField(i, 'imagePromptZh', e.target.value)} style={{ minHeight: 60 }} /></div>
+            <div className="field"><label>设定图 Prompt（English）</label><textarea className="prompt" value={c.imagePromptEn || ''} onChange={e => updateField(i, 'imagePromptEn', e.target.value)} style={{ minHeight: 60 }} /></div>
           </div>
         </div>
       ))}
@@ -622,11 +637,7 @@ function MediaGen({ styles, project, characters, scenes }) {
           {characters.map((c, i) => (
             <div key={'c' + i} className="item-card">
               <div className="kb-name">{c.name}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                {[['facePromptEn','面部'],['frontPromptEn','正面'],['sidePromptEn','侧面'],['backPromptEn','背面']].map(([k, l]) => (
-                  <Button key={k} size="small" onClick={() => useCharPrompt(c[k], c.name + l)} disabled={!c[k]}>{l}</Button>
-                ))}
-              </div>
+              <Button size="small" style={{ marginTop: 6 }} onClick={() => useCharPrompt(c.imagePromptEn, c.name + '设定图')} disabled={!c.imagePromptEn}>填入设定图EN</Button>
             </div>
           ))}
           {scenes.map((s, i) => (
@@ -666,6 +677,7 @@ function App() {
   const [newOpen, setNewOpen] = useS(false);
   const [collapsed, setCollapsed] = useS(false);
   const [cfg, setCfg] = useS(null);
+  const [analysisSource, setAnalysisSource] = useS({ mode: 'chapters', chId: '' });
 
   const refreshProjects = useCB(async () => { try { const r = await api.listProjects(); setProjects(r.items || []); } catch {} }, []);
 
@@ -691,6 +703,23 @@ function App() {
   const hasProvider = cfg?.providers?.some(p => p.apiKey && p.apiKey !== '');
   const hasChapters = (project?.chapters?.length || 0) > 0;
 
+  // 根据分析范围计算实际内容
+  const computeContent = () => {
+    if (!project) return '';
+    const chapters = project.chapters || [];
+    if (hasChapters) {
+      if (analysisSource.mode === 'chapter') {
+        const ch = chapters.find(c => c.id === analysisSource.chId);
+        return ch ? `## ${ch.title}\n${ch.content || ''}` : '';
+      }
+      if (analysisSource.mode === 'content') return project.content || '';
+      // 默认 chapters
+      return chapters.map(c => `## ${c.title}\n${c.content || ''}`).join('\n\n');
+    }
+    return project.content || '';
+  };
+  const analysisContent = computeContent();
+
   return (
     <div className="app-layout">
       <header className="app-header">
@@ -711,8 +740,9 @@ function App() {
         {project ? (
           <div className="main-area">
             <InputPanel project={project} onUpdate={updateProject} styles={styles} generating={false} hasChapters={hasChapters}
+              analysisSource={analysisSource} setAnalysisSource={setAnalysisSource}
               onAnalyzeAll={(mods) => window.__analyzeAllImpl?.(mods)} />
-            <ResultPanel project={project} onUpdate={updateProject} styles={styles} onAnalyzeAll={(mods) => window.__analyzeAllImpl?.(mods)} />
+            <ResultPanel project={project} onUpdate={updateProject} styles={styles} onAnalyzeAll={(mods) => window.__analyzeAllImpl?.(mods)} analysisSource={analysisContent} />
           </div>
         ) : (
           <div className="main-area" style={{ alignItems: 'center', justifyContent: 'center', color: 'var(--ai-text-muted)' }}>
@@ -729,18 +759,18 @@ function App() {
       </div>
       <NewProjectModal open={newOpen} onClose={() => setNewOpen(false)} onCreate={createProject} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onSaved={() => api.getConfig().then(setCfg)} />
-      <ResultPanelAnalyzeBridge project={project} results={project?.results || {}} characters={project?.results?.characters?.characters || []} scenes={project?.results?.scenes?.scenes || []} onUpdate={updateProject} />
+      <ResultPanelAnalyzeBridge project={project} results={project?.results || {}} characters={project?.results?.characters?.characters || []} scenes={project?.results?.scenes?.scenes || []} onUpdate={updateProject} analysisContent={analysisContent} />
     </div>
   );
 }
 
 // 把 analyzeAll 桥接到 window，供 InputPanel 调用
-function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate }) {
+function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate, analysisContent }) {
   useE(() => {
     window.__analyzeAllImpl = async (modules) => {
       if (!project) return;
-      if (!project.content?.trim() && !project.chapters?.length) { toast('请先输入内容或章节', 'error'); return; }
-      const content = project.chapters?.length ? project.chapters.map(c => `## ${c.title}\n${c.content}`).join('\n\n') : project.content;
+      const content = analysisContent || project.content || '';
+      if (!content.trim()) { toast('请先输入内容或选择章节', 'error'); return; }
       toast('开始批量分析', 'info');
       try {
         await api.analyzeAll({ content, visualStyle: project.style, projectId: project.id, modules }, (d) => {

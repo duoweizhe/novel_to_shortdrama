@@ -119,9 +119,9 @@ var EXAMPLE_PROJECT = {
   results: {
     characters: {
       characters: [
-        { name: "\u6797\u590F", role: "\u4E3B\u89D2", gender: "\u5973", age: "28", appearance: "\u9F50\u80A9\u77ED\u53D1\uFF0C\u4E94\u5B98\u6E05\u7626\uFF0C\u773C\u4E0B\u6709\u75B2\u6001\uFF0C\u80A4\u8272\u504F\u51B7\u767D", personality: "\u51B7\u9759\u3001\u6267\u7740\u3001\u6709\u8C03\u67E5\u8BB0\u8005\u7684\u654F\u9510\uFF0C\u9047\u9669\u65F6\u538B\u6291\u6050\u60E7", costume: "\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\uFF0C\u6DF1\u7070\u98CE\u8863\uFF0C\u630E\u5E06\u5E03\u630E\u5305\uFF0C\u9888\u6302\u5DE5\u724C", arc: "\u4ECE\u81EA\u4FE1\u8C03\u67E5\u8005\u2192\u88AB\u672A\u77E5\u529B\u91CF\u51DD\u89C6\u7684\u730E\u7269", facePromptZh: "28\u5C81\u5973\u6027\u9762\u90E8\u4E0A\u534A\u8EAB\u7279\u5199\uFF0C\u9F50\u80A9\u9ED1\u53D1\uFF0C\u51B7\u767D\u80A4\u8272\uFF0C\u6E05\u7626\u4E94\u5B98\uFF0C\u773C\u4E0B\u75B2\u6001\uFF0C\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\u9886\u53E3\uFF0C\u51B7\u8C03\u7535\u5F71\u5149\u5F71", facePromptEn: "upper body face close-up of 28yo female, shoulder-length black hair, pale cold skin, lean features, tired under-eyes, black turtleneck collar, cinematic cold-toned lighting", frontPromptZh: "28\u5C81\u5973\u6027\u6B63\u9762\u5168\u8EAB\u7167\uFF0C\u9F50\u80A9\u9ED1\u53D1\uFF0C\u7A7F\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\u6DF1\u7070\u98CE\u8863\u5E06\u5E03\u630E\u5305\u5DE5\u724C\uFF0C\u7AD9\u59FF\u633A\u62D4\uFF0C\u51B7\u8C03\u80CC\u666F", frontPromptEn: "front full-body shot of 28yo female, shoulder-length black hair, black turtleneck dark grey trench coat canvas bag ID lanyard, upright stance, cold-tone background", sidePromptZh: "28\u5C81\u5973\u6027\u4FA7\u9762\u5168\u8EAB\u7167\uFF0C\u4FA7\u8138\u9F50\u80A9\u53D1\uFF0C\u6DF1\u7070\u98CE\u8863\u4FA7\u8EAB\u8F6E\u5ED3\uFF0C\u5E06\u5E03\u630E\u5305\uFF0C\u51B7\u8C03\u5149\u5F71", sidePromptEn: "side full-body shot of 28yo female, side profile shoulder-length hair, dark grey trench coat side silhouette, canvas bag, cold-tone lighting", backPromptZh: "28\u5C81\u5973\u6027\u80CC\u9762\u5168\u8EAB\u7167\uFF0C\u9F50\u80A9\u53D1\u80CC\u5F71\uFF0C\u6DF1\u7070\u98CE\u8863\u80CC\u9762\uFF0C\u5E06\u5E03\u630E\u5305\uFF0C\u5DE5\u724C\u6302\u7EF3", backPromptEn: "back full-body shot of 28yo female, shoulder-length hair from behind, dark grey trench coat back, canvas bag, ID lanyard" },
-        { name: "\u8001\u5468", role: "\u914D\u89D2", gender: "\u7537", age: "52", appearance: "\u82B1\u767D\u5BF8\u5934\uFF0C\u65B9\u8138\uFF0C\u7709\u9AA8\u9AD8\uFF0C\u4E0B\u988C\u80E1\u832C", personality: "\u8C28\u5C0F\u614E\u5FAE\uFF0C\u89C1\u8FC7\u602A\u4E8B\uFF0C\u5BF9\u591C\u73ED\u89C4\u77E9\u8FD1\u4E4E\u8FF7\u4FE1", costume: "\u6DF1\u84DD\u4FDD\u5B89\u5236\u670D\uFF0C\u80F8\u524D\u522B\u5BF9\u8BB2\u673A\uFF0C\u8170\u95F4\u6302\u624B\u7535\u7B52", arc: "\u65C1\u89C2\u8005\u2192\u8BD5\u56FE\u8B66\u544A\u5374\u65E0\u80FD\u4E3A\u529B", facePromptZh: "52\u5C81\u7537\u6027\u9762\u90E8\u7279\u5199\uFF0C\u82B1\u767D\u5BF8\u5934\uFF0C\u65B9\u8138\u80E1\u832C\uFF0C\u7709\u9AA8\u9AD8\uFF0C\u7D27\u5F20\u795E\u60C5\uFF0C\u6DF1\u84DD\u5236\u670D\u9886\u53E3\uFF0C\u51B7\u8C03\u76D1\u89C6\u5668\u5149\u7EBF", facePromptEn: "face close-up of 52yo male, grey buzz cut, square jaw stubble, prominent brow, tense expression, dark blue uniform collar, cold monitor glow", frontPromptZh: "52\u5C81\u7537\u6027\u6B63\u9762\u5168\u8EAB\u7167\uFF0C\u82B1\u767D\u5BF8\u5934\uFF0C\u6DF1\u84DD\u4FDD\u5B89\u5236\u670D\u5BF9\u8BB2\u673A\u624B\u7535\u7B52\uFF0C\u7AD9\u59FF\u62D8\u8C28", frontPromptEn: "front full-body shot of 52yo male, grey buzz cut, dark blue security uniform walkie-talkie flashlight, restrained stance", sidePromptZh: "52\u5C81\u7537\u6027\u4FA7\u9762\u5168\u8EAB\u7167\uFF0C\u82B1\u767D\u5BF8\u5934\u4FA7\u8138\uFF0C\u6DF1\u84DD\u5236\u670D\u4FA7\u8EAB\uFF0C\u80E1\u832C\u8F6E\u5ED3", sidePromptEn: "side full-body shot of 52yo male, grey buzz cut side profile, dark blue uniform side body, stubble silhouette", backPromptZh: "52\u5C81\u7537\u6027\u80CC\u9762\u5168\u8EAB\u7167\uFF0C\u82B1\u767D\u5BF8\u5934\u80CC\u5F71\uFF0C\u6DF1\u84DD\u5236\u670D\u80CC\u9762\uFF0C\u8170\u95F4\u624B\u7535", backPromptEn: "back full-body shot of 52yo male, grey buzz cut from behind, dark blue uniform back, waist flashlight" },
-        { name: "\u4EBA\u5F71", role: "\u53CD\u6D3E/\u8C1C\u56E2", gender: "\u672A\u77E5", age: "\u4E0D\u660E", appearance: "\u8EAB\u5F62\u4FEE\u957F\uFF0C\u9762\u5BB9\u9690\u4E8E\u9634\u5F71\uFF0C\u8F6E\u5ED3\u6A21\u7CCA", personality: "\u6C89\u9ED8\u3001\u8BE1\u8C32\uFF0C\u610F\u56FE\u4E0D\u660E", costume: "\u7070\u8272\u98CE\u8863\uFF0C\u7ACB\u9886\u906E\u4F4F\u4E0B\u534A\u5F20\u8138\uFF0C\u53CC\u624B\u82CD\u767D", arc: "\u795E\u79D8\u5B58\u5728\uFF0C\u6307\u5411\u7B14\u8BB0\u540E\u706F\u706D", facePromptZh: "\u795E\u79D8\u4EBA\u5F71\u9762\u90E8\u7279\u5199\uFF0C\u7ACB\u9886\u98CE\u8863\u906E\u4F4F\u4E0B\u534A\u8138\uFF0C\u4E0A\u534A\u8138\u9690\u4E8E\u9634\u5F71\u53EA\u89C1\u8F6E\u5ED3\uFF0C\u82CD\u767D\u53CC\u624B\uFF0C\u5E7D\u6697\u51B7\u5149", facePromptEn: "face close-up of mysterious silhouette, high-collar trench coat covering lower face, upper face hidden in shadow only outline visible, pale hands, dim cold light", frontPromptZh: "\u795E\u79D8\u4EBA\u5F71\u6B63\u9762\u5168\u8EAB\u7167\uFF0C\u7070\u8272\u7ACB\u9886\u98CE\u8863\uFF0C\u9762\u5BB9\u9690\u4E8E\u9634\u5F71\uFF0C\u8EAB\u5F62\u4FEE\u957F\uFF0C\u53CC\u624B\u82CD\u767D", frontPromptEn: "front full-body shot of mysterious silhouette, grey high-collar trench coat, face hidden in shadow, tall slender build, pale hands", sidePromptZh: "\u795E\u79D8\u4EBA\u5F71\u4FA7\u9762\u5168\u8EAB\u7167\uFF0C\u7070\u8272\u98CE\u8863\u4FA7\u8EAB\u8F6E\u5ED3\uFF0C\u7ACB\u9886\u906E\u9762\uFF0C\u4FEE\u957F\u8EAB\u5F62", sidePromptEn: "side full-body shot of mysterious silhouette, grey trench coat side silhouette, high collar covering face, slender build", backPromptZh: "\u795E\u79D8\u4EBA\u5F71\u80CC\u9762\u5168\u8EAB\u7167\uFF0C\u7070\u8272\u98CE\u8863\u80CC\u5F71\uFF0C\u7ACB\u9886\uFF0C\u4FEE\u957F\u8F6E\u5ED3", backPromptEn: "back full-body shot of mysterious silhouette, grey trench coat from behind, high collar, slender outline" }
+        { name: "\u6797\u590F", role: "\u4E3B\u89D2", gender: "\u5973", age: "28", appearance: "\u9F50\u80A9\u77ED\u53D1\uFF0C\u4E94\u5B98\u6E05\u7626\uFF0C\u773C\u4E0B\u6709\u75B2\u6001\uFF0C\u80A4\u8272\u504F\u51B7\u767D", personality: "\u51B7\u9759\u3001\u6267\u7740\u3001\u6709\u8C03\u67E5\u8BB0\u8005\u7684\u654F\u9510\uFF0C\u9047\u9669\u65F6\u538B\u6291\u6050\u60E7", costume: "\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\uFF0C\u6DF1\u7070\u98CE\u8863\uFF0C\u630E\u5E06\u5E03\u630E\u5305\uFF0C\u9888\u6302\u5DE5\u724C", arc: "\u4ECE\u81EA\u4FE1\u8C03\u67E5\u8005\u2192\u88AB\u672A\u77E5\u529B\u91CF\u51DD\u89C6\u7684\u730E\u7269", imagePromptZh: "\u89D2\u8272\u8BBE\u5B9A\u56FE\uFF0C2x2\u56DB\u5BAB\u683C\u767D\u8272\u80CC\u666F\uFF0C\u5DE6\u4E0A\uFF1A28\u5C81\u5973\u6027\u9762\u90E8\u4E0A\u534A\u8EAB\u7279\u5199\u9F50\u80A9\u9ED1\u53D1\u51B7\u767D\u80A4\u8272\u6E05\u7626\u4E94\u5B98\u773C\u4E0B\u75B2\u6001\uFF1B\u53F3\u4E0A\uFF1A\u6B63\u9762\u5168\u8EAB\u7167\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\u6DF1\u7070\u98CE\u8863\u5E06\u5E03\u630E\u5305\u5DE5\u724C\u7AD9\u59FF\u633A\u62D4\uFF1B\u5DE6\u4E0B\uFF1A\u4FA7\u9762\u5168\u8EAB\u7167\u4FA7\u8138\u9F50\u80A9\u53D1\u6DF1\u7070\u98CE\u8863\u4FA7\u8EAB\u8F6E\u5ED3\uFF1B\u53F3\u4E0B\uFF1A\u80CC\u9762\u5168\u8EAB\u7167\u9F50\u80A9\u53D1\u80CC\u5F71\u6DF1\u7070\u98CE\u8863\u80CC\u9762\u5DE5\u724C\u6302\u7EF3\u3002\u540C\u4E00\u89D2\u8272\u540C\u4E00\u670D\u88C5\uFF0C\u51B7\u8C03\u7535\u5F71\u5149\u5F71", imagePromptEn: "character turnaround reference sheet, 2x2 grid on white background, top-left upper-body face close-up of 28yo female shoulder-length black hair pale cold skin lean features tired under-eyes black turtleneck collar; top-right front full-body view black turtleneck dark grey trench coat canvas bag ID lanyard upright stance; bottom-left side profile full-body view side face shoulder-length hair trench coat side silhouette; bottom-right back full-body view shoulder-length hair from behind trench coat back ID lanyard, same character same costume consistent design, cinematic cold-toned lighting" },
+        { name: "\u8001\u5468", role: "\u914D\u89D2", gender: "\u7537", age: "52", appearance: "\u82B1\u767D\u5BF8\u5934\uFF0C\u65B9\u8138\uFF0C\u7709\u9AA8\u9AD8\uFF0C\u4E0B\u988C\u80E1\u832C", personality: "\u8C28\u5C0F\u614E\u5FAE\uFF0C\u89C1\u8FC7\u602A\u4E8B\uFF0C\u5BF9\u591C\u73ED\u89C4\u77E9\u8FD1\u4E4E\u8FF7\u4FE1", costume: "\u6DF1\u84DD\u4FDD\u5B89\u5236\u670D\uFF0C\u80F8\u524D\u522B\u5BF9\u8BB2\u673A\uFF0C\u8170\u95F4\u6302\u624B\u7535\u7B52", arc: "\u65C1\u89C2\u8005\u2192\u8BD5\u56FE\u8B66\u544A\u5374\u65E0\u80FD\u4E3A\u529B", imagePromptZh: "\u89D2\u8272\u8BBE\u5B9A\u56FE\uFF0C2x2\u56DB\u5BAB\u683C\u767D\u8272\u80CC\u666F\uFF0C\u5DE6\u4E0A\uFF1A52\u5C81\u7537\u6027\u9762\u90E8\u7279\u5199\u82B1\u767D\u5BF8\u5934\u65B9\u8138\u80E1\u832C\u7709\u9AA8\u9AD8\u7D27\u5F20\u795E\u60C5\u6DF1\u84DD\u5236\u670D\u9886\u53E3\uFF1B\u53F3\u4E0A\uFF1A\u6B63\u9762\u5168\u8EAB\u7167\u6DF1\u84DD\u4FDD\u5B89\u5236\u670D\u5BF9\u8BB2\u673A\u624B\u7535\u7B52\u62D8\u8C28\u7AD9\u59FF\uFF1B\u5DE6\u4E0B\uFF1A\u4FA7\u9762\u5168\u8EAB\u7167\u82B1\u767D\u5BF8\u5934\u4FA7\u8138\u6DF1\u84DD\u5236\u670D\u4FA7\u8EAB\u80E1\u832C\u8F6E\u5ED3\uFF1B\u53F3\u4E0B\uFF1A\u80CC\u9762\u5168\u8EAB\u7167\u82B1\u767D\u5BF8\u5934\u80CC\u5F71\u6DF1\u84DD\u5236\u670D\u80CC\u9762\u8170\u95F4\u624B\u7535\u3002\u540C\u4E00\u89D2\u8272\u540C\u4E00\u670D\u88C5", imagePromptEn: "character turnaround reference sheet, 2x2 grid on white background, top-left face close-up of 52yo male grey buzz cut square jaw stubble prominent brow tense expression dark blue uniform collar; top-right front full-body view dark blue security uniform walkie-talkie flashlight restrained stance; bottom-left side profile full-body view grey buzz cut side face dark blue uniform side body stubble silhouette; bottom-right back full-body view grey buzz cut from behind dark blue uniform back waist flashlight, same character same costume consistent design" },
+        { name: "\u4EBA\u5F71", role: "\u53CD\u6D3E/\u8C1C\u56E2", gender: "\u672A\u77E5", age: "\u4E0D\u660E", appearance: "\u8EAB\u5F62\u4FEE\u957F\uFF0C\u9762\u5BB9\u9690\u4E8E\u9634\u5F71\uFF0C\u8F6E\u5ED3\u6A21\u7CCA", personality: "\u6C89\u9ED8\u3001\u8BE1\u8C32\uFF0C\u610F\u56FE\u4E0D\u660E", costume: "\u7070\u8272\u98CE\u8863\uFF0C\u7ACB\u9886\u906E\u4F4F\u4E0B\u534A\u5F20\u8138\uFF0C\u53CC\u624B\u82CD\u767D", arc: "\u795E\u79D8\u5B58\u5728\uFF0C\u6307\u5411\u7B14\u8BB0\u540E\u706F\u706D", imagePromptZh: "\u89D2\u8272\u8BBE\u5B9A\u56FE\uFF0C2x2\u56DB\u5BAB\u683C\u767D\u8272\u80CC\u666F\uFF0C\u5DE6\u4E0A\uFF1A\u795E\u79D8\u4EBA\u5F71\u9762\u90E8\u7279\u5199\u7ACB\u9886\u98CE\u8863\u906E\u4F4F\u4E0B\u534A\u8138\u4E0A\u534A\u8138\u9690\u4E8E\u9634\u5F71\u53EA\u89C1\u8F6E\u5ED3\u82CD\u767D\u53CC\u624B\uFF1B\u53F3\u4E0A\uFF1A\u6B63\u9762\u5168\u8EAB\u7167\u7070\u8272\u7ACB\u9886\u98CE\u8863\u9762\u5BB9\u9690\u4E8E\u9634\u5F71\u8EAB\u5F62\u4FEE\u957F\u53CC\u624B\u82CD\u767D\uFF1B\u5DE6\u4E0B\uFF1A\u4FA7\u9762\u5168\u8EAB\u7167\u7070\u8272\u98CE\u8863\u4FA7\u8EAB\u8F6E\u5ED3\u7ACB\u9886\u906E\u9762\u4FEE\u957F\u8EAB\u5F62\uFF1B\u53F3\u4E0B\uFF1A\u80CC\u9762\u5168\u8EAB\u7167\u7070\u8272\u98CE\u8863\u80CC\u5F71\u7ACB\u9886\u4FEE\u957F\u8F6E\u5ED3\u3002\u540C\u4E00\u89D2\u8272\u540C\u4E00\u670D\u88C5\uFF0C\u60AC\u7591\u6C1B\u56F4", imagePromptEn: "character turnaround reference sheet, 2x2 grid on white background, top-left face close-up of mysterious silhouette high-collar trench coat covering lower face upper face hidden in shadow only outline visible pale hands; top-right front full-body view grey high-collar trench coat face hidden in shadow tall slender build pale hands; bottom-left side profile full-body view grey trench coat side silhouette high collar covering face slender build; bottom-right back full-body view grey trench coat from behind high collar slender outline, same character same costume consistent design, eerie thriller atmosphere" }
       ]
     },
     scenes: {
@@ -347,6 +347,7 @@ function ChapterManager({ project, onUpdate }) {
   const [editId, setEditId] = useS(null);
   const [editTitle, setEditTitle] = useS("");
   const [editContent, setEditContent] = useS("");
+  const [previewCh, setPreviewCh] = useS(null);
   const [collapsedGroups, setCollapsedGroups] = useS({});
   const [importOpen, setImportOpen] = useS(false);
   const [importText, setImportText] = useS("");
@@ -368,6 +369,12 @@ function ChapterManager({ project, onUpdate }) {
     setNewContent("");
     setNewGroup("");
     toast("\u7AE0\u8282\u5DF2\u6DFB\u52A0", "ok");
+  };
+  const startEdit = (ch) => {
+    setEditId(ch.id);
+    setEditTitle(ch.title);
+    setEditContent(ch.content || "");
+    setPreviewCh(null);
   };
   const saveEdit = async () => {
     if (!editId) return;
@@ -425,20 +432,24 @@ function ChapterManager({ project, onUpdate }) {
         /* @__PURE__ */ jsx("input", { value: editTitle, onChange: (e) => setEditTitle(e.target.value), style: { flex: 1, padding: "4px 8px", border: "1px solid var(--ai-border)", borderRadius: 6, fontSize: 12 } }),
         /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: saveEdit, children: "\u4FDD\u5B58" }),
         /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setEditId(null), children: "\u53D6\u6D88" })
-      ] }) : /* @__PURE__ */ jsxs("div", { className: "chapter-row", onClick: () => {
-        setEditId(ch.id);
-        setEditTitle(ch.title);
-        setEditContent(ch.content || "");
-      }, children: [
+      ] }) : /* @__PURE__ */ jsxs("div", { className: "chapter-row", children: [
         /* @__PURE__ */ jsx("span", { className: "ch-icon", children: "\u{1F4C4}" }),
-        /* @__PURE__ */ jsx("span", { className: "ch-title", children: ch.title }),
+        /* @__PURE__ */ jsx("span", { className: "ch-title", onClick: () => setPreviewCh(ch), children: ch.title }),
         /* @__PURE__ */ jsxs("span", { className: "ch-meta", children: [
           (ch.content || "").length,
           "\u5B57"
         ] }),
         /* @__PURE__ */ jsxs("span", { className: "ch-actions", children: [
           ch.analysis?.characters && /* @__PURE__ */ jsx(Tag, { size: "small", color: "app-green", children: "\u5DF2\u5206\u6790" }),
-          /* @__PURE__ */ jsx("span", { className: "ch-del", onClick: (e) => {
+          /* @__PURE__ */ jsx("span", { className: "ch-btn", title: "\u9884\u89C8", onClick: (e) => {
+            e.stopPropagation();
+            setPreviewCh(ch);
+          }, children: "\u{1F441}" }),
+          /* @__PURE__ */ jsx("span", { className: "ch-btn", title: "\u7F16\u8F91", onClick: (e) => {
+            e.stopPropagation();
+            startEdit(ch);
+          }, children: "\u270F" }),
+          /* @__PURE__ */ jsx("span", { className: "ch-del", title: "\u5220\u9664", onClick: (e) => {
             e.stopPropagation();
             delChapter(ch.id);
           }, children: "\u2715" })
@@ -450,6 +461,30 @@ function ChapterManager({ project, onUpdate }) {
       /* @__PURE__ */ jsx("textarea", { value: editContent, onChange: (e) => setEditContent(e.target.value), style: { minHeight: 120, width: "100%", border: "1px solid var(--ai-border)", borderRadius: 6, padding: 8, fontSize: 12, fontFamily: "inherit", background: "var(--ai-bg-content)" } }),
       /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: saveEdit, style: { marginTop: 6 }, children: "\u4FDD\u5B58\u5185\u5BB9" })
     ] }),
+    /* @__PURE__ */ jsxs(
+      Modal,
+      {
+        open: !!previewCh,
+        title: previewCh?.title || "\u7AE0\u8282\u9884\u89C8",
+        onClose: () => setPreviewCh(null),
+        okText: "\u7F16\u8F91",
+        cancelText: "\u5173\u95ED",
+        onOk: () => {
+          if (previewCh) startEdit(previewCh);
+        },
+        width: 620,
+        children: [
+          /* @__PURE__ */ jsx("div", { style: { maxHeight: "50vh", overflow: "auto", whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.7, color: "var(--ai-text-body)", background: "var(--ai-bg)", padding: 12, borderRadius: 8 }, children: previewCh?.content || "\uFF08\u65E0\u5185\u5BB9\uFF09" }),
+          /* @__PURE__ */ jsxs("div", { style: { marginTop: 8, fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+            "\u5206\u7EC4\uFF1A",
+            previewCh?.group || "\u672A\u5206\u7EC4",
+            " \xB7 ",
+            (previewCh?.content || "").length,
+            " \u5B57"
+          ] })
+        ]
+      }
+    ),
     /* @__PURE__ */ jsxs(Modal, { open: addOpen, title: "\u6DFB\u52A0\u7AE0\u8282", onClose: () => setAddOpen(false), onOk: addChapter, okText: "\u6DFB\u52A0", cancelText: "\u53D6\u6D88", children: [
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
         /* @__PURE__ */ jsx("label", { children: "\u5377/\u5206\u7EC4\uFF08\u53EF\u9009\uFF09" }),
@@ -470,7 +505,7 @@ function ChapterManager({ project, onUpdate }) {
     ] })
   ] });
 }
-function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters }) {
+function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, analysisSource, setAnalysisSource }) {
   const [content, setContent] = useS(project?.content || "");
   const [selectedModules, setSelectedModules] = useS(MODULES.map((m) => m.id));
   const [status, setStatus] = useS("");
@@ -507,6 +542,7 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
     }
     setPreprocessing(false);
   };
+  const chapters = project?.chapters || [];
   return /* @__PURE__ */ jsxs("div", { className: "input-panel", children: [
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
       /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4DD} \u6E90\u6587\u672C" }) }),
@@ -520,6 +556,23 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
       /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F3A8} \u89C6\u89C9\u98CE\u683C" }) }),
       /* @__PURE__ */ jsx("div", { className: "style-grid", children: styles.map((s) => /* @__PURE__ */ jsx("div", { className: `style-chip ${project?.style === s.key ? "active" : ""}`, onClick: () => onUpdate({ style: s.key }), title: s.desc, children: s.label }, s.key)) })
+    ] }),
+    hasChapters && /* @__PURE__ */ jsxs("div", { className: "card", children: [
+      /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F3AF} \u5206\u6790\u8303\u56F4" }) }),
+      /* @__PURE__ */ jsxs("select", { value: analysisSource.mode, onChange: (e) => setAnalysisSource((s) => ({ ...s, mode: e.target.value, chId: "" })), style: { width: "100%", padding: "6px 10px", border: "2px solid var(--ai-border)", borderRadius: 8, background: "var(--ai-bg-content)", fontSize: 13, marginBottom: 6 }, children: [
+        /* @__PURE__ */ jsxs("option", { value: "chapters", children: [
+          "\u5168\u90E8\u7AE0\u8282\uFF08",
+          chapters.length,
+          "\u7AE0\u62FC\u63A5\uFF09"
+        ] }),
+        /* @__PURE__ */ jsx("option", { value: "chapter", children: "\u5355\u7AE0\u5206\u6790" }),
+        /* @__PURE__ */ jsx("option", { value: "content", children: "\u6E90\u6587\u672C\uFF08\u4E0D\u4F7F\u7528\u7AE0\u8282\uFF09" })
+      ] }),
+      analysisSource.mode === "chapter" && /* @__PURE__ */ jsxs("select", { value: analysisSource.chId, onChange: (e) => setAnalysisSource((s) => ({ ...s, chId: e.target.value })), style: { width: "100%", padding: "6px 10px", border: "2px solid var(--ai-border)", borderRadius: 8, background: "var(--ai-bg-content)", fontSize: 13 }, children: [
+        /* @__PURE__ */ jsx("option", { value: "", children: "\u8BF7\u9009\u62E9\u7AE0\u8282..." }),
+        chapters.map((c) => /* @__PURE__ */ jsx("option", { value: c.id, children: c.title }, c.id))
+      ] }),
+      /* @__PURE__ */ jsx("p", { style: { fontSize: 11, color: "var(--ai-primary)", marginTop: 6 }, children: "\u{1F4A1} \u5206\u6790\u65F6\u77E5\u8BC6\u5E93\u81EA\u52A8\u6CE8\u5165\u4E0A\u4E0B\u6587\uFF0C\u786E\u4FDD\u8DE8\u7AE0\u4EBA\u7269/\u573A\u666F\u4E00\u81F4\u3002" })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
       /* @__PURE__ */ jsxs("div", { className: "card-head", children: [
@@ -538,12 +591,11 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
       /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u26A1 \u64CD\u4F5C" }) }),
       /* @__PURE__ */ jsx("div", { className: "gen-actions", children: /* @__PURE__ */ jsx(Button, { block: true, loading: preprocessing, onClick: doPreprocess, children: "\u{1F50D} \u9884\u5904\u7406" }) }),
       /* @__PURE__ */ jsx("div", { className: "gen-actions", children: /* @__PURE__ */ jsx(Button, { block: true, type: "primary", loading: generating, onClick: () => onAnalyzeAll(selectedModules), children: "\u{1F680} \u4E00\u952E\u5168\u90E8\u5206\u6790" }) }),
-      /* @__PURE__ */ jsx("div", { className: "status-bar info", children: status }),
-      hasChapters && /* @__PURE__ */ jsx("p", { style: { fontSize: 11, color: "var(--ai-primary)", marginTop: 6 }, children: "\u{1F4A1} \u5DF2\u542F\u7528\u7AE0\u8282\u7BA1\u7406\uFF0C\u5206\u6790\u65F6\u77E5\u8BC6\u5E93\u5C06\u8DE8\u7AE0\u7D2F\u79EF\uFF0C\u81EA\u52A8\u4FDD\u6301\u4EBA\u7269/\u573A\u666F\u4E00\u81F4\u3002" })
+      /* @__PURE__ */ jsx("div", { className: "status-bar info", children: status })
     ] })
   ] });
 }
-function ResultPanel({ project, onUpdate, styles, onAnalyzeAll }) {
+function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }) {
   const [tab, setTab] = useS("characters");
   const [streaming, setStreaming] = useS("");
   const [generating, setGenerating] = useS(false);
@@ -559,30 +611,25 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll }) {
       toast("\u8BF7\u5148\u8F93\u5165\u5185\u5BB9\u6216\u7AE0\u8282", "error");
       return;
     }
+    const content = analysisSource;
     setGenerating(true);
     setStreaming("");
-    setProgress(`\u6B63\u5728\u751F\u6210${MODULES.find((m) => m.id === type)?.name}...`);
-    setProgressPct(10);
-    const content = project.chapters?.length ? project.chapters.map((c) => `## ${c.title}
-${c.content}`).join("\n\n") : project.content;
+    setProgress(`\u6B63\u5728\u751F\u6210${MODULES.find((m) => m.id === type)?.name}\uFF0C\u8BF7\u7A0D\u5019...`);
+    setProgressPct(30);
     const ac = new AbortController();
     abortRef.current = ac;
     try {
-      let mdBuf = "";
       await api.analyze({ type, content, visualStyle: project.style, projectId: project.id, characters, scenes }, (d) => {
-        if (d.status === "start") setProgressPct(30);
-        if (d.status === "chunk") {
-          mdBuf += d.content;
-          setStreaming(mdBuf);
-          setProgressPct(70);
-        }
+        if (d.status === "start") setProgressPct(40);
         if (d.status === "done") {
           onUpdate({ results: { ...results, [type]: d.result } });
-          setStreaming("");
           setProgress(`${MODULES.find((m) => m.id === type)?.name} \u5B8C\u6210`);
           setProgressPct(100);
           toast("\u751F\u6210\u5B8C\u6210", "ok");
-          setTimeout(() => setProgressPct(0), 1500);
+          setTimeout(() => {
+            setProgress("");
+            setProgressPct(0);
+          }, 1500);
         }
         if (d.status === "error") {
           setProgress("\u9519\u8BEF: " + d.error);
@@ -621,10 +668,9 @@ ${c.content}`).join("\n\n") : project.content;
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "result-content", children: [
-      (generating || streaming) && /* @__PURE__ */ jsxs("div", { style: { marginBottom: 12, padding: 10, background: "var(--ai-primary-bg)", borderRadius: 8, fontSize: 13 }, children: [
+      generating && /* @__PURE__ */ jsxs("div", { style: { marginBottom: 12, padding: 10, background: "var(--ai-primary-bg)", borderRadius: 8, fontSize: 13 }, children: [
         progress,
-        progressPct > 0 && /* @__PURE__ */ jsx("div", { className: "progress-line", children: /* @__PURE__ */ jsx("div", { className: "fill", style: { width: progressPct + "%" } }) }),
-        streaming && /* @__PURE__ */ jsx("div", { className: "md-body", style: { marginTop: 8, maxHeight: 300, overflow: "auto" }, dangerouslySetInnerHTML: { __html: renderMd(streaming) } })
+        progressPct > 0 && /* @__PURE__ */ jsx("div", { className: "progress-line", children: /* @__PURE__ */ jsx("div", { className: "fill", style: { width: progressPct + "%" } }) })
       ] }),
       tab === "characters" && /* @__PURE__ */ jsx(CharactersView, { characters, onUpdate: (chars) => onUpdate({ results: { ...results, characters: { characters: chars } } }) }),
       tab === "scenes" && /* @__PURE__ */ jsx(ScenesView, { scenes, onUpdate: (sc) => onUpdate({ results: { ...results, scenes: { scenes: sc } } }) }),
@@ -637,14 +683,8 @@ ${c.content}`).join("\n\n") : project.content;
   ] });
 }
 function CharactersView({ characters, onUpdate }) {
-  if (!characters.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u89D2\u8272\u8BBE\u5B9A\u540E\u5C06\u663E\u793A\uFF0C\u542B\u9762\u90E8/\u6B63\u9762/\u4FA7\u9762/\u80CC\u97624\u89C6\u56FEPrompt" });
+  if (!characters.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u89D2\u8272\u8BBE\u5B9A\u540E\u5C06\u663E\u793A\uFF0C\u6BCF\u89D2\u8272\u542B\u4E00\u5F204\u89C6\u56FE\u8BBE\u5B9A\u56FEPrompt" });
   const baseFields = [["role", "\u53D9\u4E8B\u529F\u80FD"], ["gender", "\u6027\u522B"], ["age", "\u5E74\u9F84"], ["appearance", "\u5916\u8C8C"], ["personality", "\u6027\u683C"], ["costume", "\u670D\u88C5\u9053\u5177"], ["arc", "\u89D2\u8272\u5F27\u5149"]];
-  const viewFields = [
-    ["facePromptZh", "\u9762\u90E8\u7279\u5199(\u4E2D)", "facePromptEn", "\u9762\u90E8\u7279\u5199(EN)"],
-    ["frontPromptZh", "\u6B63\u9762\u5168\u8EAB(\u4E2D)", "frontPromptEn", "\u6B63\u9762\u5168\u8EAB(EN)"],
-    ["sidePromptZh", "\u4FA7\u9762\u5168\u8EAB(\u4E2D)", "sidePromptEn", "\u4FA7\u9762\u5168\u8EAB(EN)"],
-    ["backPromptZh", "\u80CC\u9762\u5168\u8EAB(\u4E2D)", "backPromptEn", "\u80CC\u9762\u5168\u8EAB(EN)"]
-  ];
   const updateField = (i, k, v) => {
     const c = [...characters];
     c[i] = { ...c[i], [k]: v };
@@ -661,17 +701,15 @@ function CharactersView({ characters, onUpdate }) {
         /* @__PURE__ */ jsx("input", { value: c[k] || "", onChange: (e) => updateField(i, k, e.target.value) })
       ] }, k)),
       /* @__PURE__ */ jsxs("div", { className: "view-prompts", style: { borderTop: "1px dashed var(--ai-border)", paddingTop: 8, marginTop: 8 }, children: [
-        /* @__PURE__ */ jsx("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--ai-text)", marginBottom: 6 }, children: "\u{1F4D0} 4\u89C6\u56FE\u751F\u56FE Prompt" }),
-        viewFields.map(([kZh, lZh, kEn, lEn]) => /* @__PURE__ */ jsxs("div", { className: "view-row", children: [
-          /* @__PURE__ */ jsxs("div", { className: "field", children: [
-            /* @__PURE__ */ jsx("label", { children: lZh }),
-            /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c[kZh] || "", onChange: (e) => updateField(i, kZh, e.target.value) })
-          ] }),
-          /* @__PURE__ */ jsxs("div", { className: "field", children: [
-            /* @__PURE__ */ jsx("label", { children: lEn }),
-            /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c[kEn] || "", onChange: (e) => updateField(i, kEn, e.target.value) })
-          ] })
-        ] }, kZh))
+        /* @__PURE__ */ jsx("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--ai-text)", marginBottom: 6 }, children: "\u{1F4D0} \u89D2\u8272\u8BBE\u5B9A\u56FE Prompt\uFF08\u5355\u56FE\u542B4\u89C6\u56FE\uFF1A\u9762\u90E8\u7279\u5199/\u6B63\u9762/\u4FA7\u9762/\u80CC\u9762\u5168\u8EAB\uFF09" }),
+        /* @__PURE__ */ jsxs("div", { className: "field", children: [
+          /* @__PURE__ */ jsx("label", { children: "\u8BBE\u5B9A\u56FE Prompt\uFF08\u4E2D\u6587\uFF09" }),
+          /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c.imagePromptZh || "", onChange: (e) => updateField(i, "imagePromptZh", e.target.value), style: { minHeight: 60 } })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "field", children: [
+          /* @__PURE__ */ jsx("label", { children: "\u8BBE\u5B9A\u56FE Prompt\uFF08English\uFF09" }),
+          /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c.imagePromptEn || "", onChange: (e) => updateField(i, "imagePromptEn", e.target.value), style: { minHeight: 60 } })
+        ] })
       ] })
     ] }, i)),
     /* @__PURE__ */ jsx(Button, { onClick: () => onUpdate([...characters, { name: "\u65B0\u89D2\u8272" }]), children: "+ \u65B0\u589E\u89D2\u8272" })
@@ -925,7 +963,7 @@ function MediaGen({ styles, project, characters, scenes }) {
     characters.length === 0 && scenes.length === 0 ? /* @__PURE__ */ jsx(Empty, { tip: "\u5148\u751F\u6210\u89D2\u8272/\u573A\u666F\u8BBE\u5B9A" }) : /* @__PURE__ */ jsxs("div", { className: "grid-cards", style: { marginTop: 10 }, children: [
       characters.map((c, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
         /* @__PURE__ */ jsx("div", { className: "kb-name", children: c.name }),
-        /* @__PURE__ */ jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }, children: [["facePromptEn", "\u9762\u90E8"], ["frontPromptEn", "\u6B63\u9762"], ["sidePromptEn", "\u4FA7\u9762"], ["backPromptEn", "\u80CC\u9762"]].map(([k, l]) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => useCharPrompt(c[k], c.name + l), disabled: !c[k], children: l }, k)) })
+        /* @__PURE__ */ jsx(Button, { size: "small", style: { marginTop: 6 }, onClick: () => useCharPrompt(c.imagePromptEn, c.name + "\u8BBE\u5B9A\u56FE"), disabled: !c.imagePromptEn, children: "\u586B\u5165\u8BBE\u5B9A\u56FEEN" })
       ] }, "c" + i)),
       scenes.map((s, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
         /* @__PURE__ */ jsx("div", { className: "kb-name", children: s.name }),
@@ -976,6 +1014,7 @@ function App() {
   const [newOpen, setNewOpen] = useS(false);
   const [collapsed, setCollapsed] = useS(false);
   const [cfg, setCfg] = useS(null);
+  const [analysisSource, setAnalysisSource] = useS({ mode: "chapters", chId: "" });
   const refreshProjects = useCB(async () => {
     try {
       const r = await api.listProjects();
@@ -1056,6 +1095,22 @@ function App() {
   };
   const hasProvider = cfg?.providers?.some((p) => p.apiKey && p.apiKey !== "");
   const hasChapters = (project?.chapters?.length || 0) > 0;
+  const computeContent = () => {
+    if (!project) return "";
+    const chapters = project.chapters || [];
+    if (hasChapters) {
+      if (analysisSource.mode === "chapter") {
+        const ch = chapters.find((c) => c.id === analysisSource.chId);
+        return ch ? `## ${ch.title}
+${ch.content || ""}` : "";
+      }
+      if (analysisSource.mode === "content") return project.content || "";
+      return chapters.map((c) => `## ${c.title}
+${c.content || ""}`).join("\n\n");
+    }
+    return project.content || "";
+  };
+  const analysisContent = computeContent();
   return /* @__PURE__ */ jsxs("div", { className: "app-layout", children: [
     /* @__PURE__ */ jsxs("header", { className: "app-header", children: [
       /* @__PURE__ */ jsx("div", { className: "header-left", children: /* @__PURE__ */ jsxs("div", { className: "logo", children: [
@@ -1083,10 +1138,12 @@ function App() {
             styles,
             generating: false,
             hasChapters,
+            analysisSource,
+            setAnalysisSource,
             onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods)
           }
         ),
-        /* @__PURE__ */ jsx(ResultPanel, { project, onUpdate: updateProject, styles, onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods) })
+        /* @__PURE__ */ jsx(ResultPanel, { project, onUpdate: updateProject, styles, onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods), analysisSource: analysisContent })
       ] }) : /* @__PURE__ */ jsx("div", { className: "main-area", style: { alignItems: "center", justifyContent: "center", color: "var(--ai-text-muted)" }, children: /* @__PURE__ */ jsxs("div", { style: { textAlign: "center" }, children: [
         /* @__PURE__ */ jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\u{1F3AC}" }),
         /* @__PURE__ */ jsx("div", { style: { fontSize: 18, fontWeight: 700, color: "var(--ai-text)", marginBottom: 8 }, children: "\u77ED\u5267\u811A\u672C\u5DE5\u574A" }),
@@ -1098,19 +1155,18 @@ function App() {
     ] }),
     /* @__PURE__ */ jsx(NewProjectModal, { open: newOpen, onClose: () => setNewOpen(false), onCreate: createProject }),
     /* @__PURE__ */ jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), onSaved: () => api.getConfig().then(setCfg) }),
-    /* @__PURE__ */ jsx(ResultPanelAnalyzeBridge, { project, results: project?.results || {}, characters: project?.results?.characters?.characters || [], scenes: project?.results?.scenes?.scenes || [], onUpdate: updateProject })
+    /* @__PURE__ */ jsx(ResultPanelAnalyzeBridge, { project, results: project?.results || {}, characters: project?.results?.characters?.characters || [], scenes: project?.results?.scenes?.scenes || [], onUpdate: updateProject, analysisContent })
   ] });
 }
-function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate }) {
+function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate, analysisContent }) {
   useE(() => {
     window.__analyzeAllImpl = async (modules) => {
       if (!project) return;
-      if (!project.content?.trim() && !project.chapters?.length) {
-        toast("\u8BF7\u5148\u8F93\u5165\u5185\u5BB9\u6216\u7AE0\u8282", "error");
+      const content = analysisContent || project.content || "";
+      if (!content.trim()) {
+        toast("\u8BF7\u5148\u8F93\u5165\u5185\u5BB9\u6216\u9009\u62E9\u7AE0\u8282", "error");
         return;
       }
-      const content = project.chapters?.length ? project.chapters.map((c) => `## ${c.title}
-${c.content}`).join("\n\n") : project.content;
       toast("\u5F00\u59CB\u6279\u91CF\u5206\u6790", "info");
       try {
         await api.analyzeAll({ content, visualStyle: project.style, projectId: project.id, modules }, (d) => {
