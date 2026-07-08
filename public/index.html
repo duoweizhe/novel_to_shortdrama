@@ -10,22 +10,35 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.26.10/babel.min.js"></script>
+  <link rel="stylesheet" href="https://esm.sh/animal-island-ui@1.2.0/dist/index.css" />
   <link rel="stylesheet" href="css/app.css" />
   <script type="importmap">
   {
     "imports": {
       "react": "https://esm.sh/react@18.3.1",
+      "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
       "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
       "react-dom": "https://esm.sh/react-dom@18.3.1",
-      "animal-island-ui": "https://esm.sh/animal-island-ui@1.2.0?deps=react@18.3.1,react-dom@18.3.1",
-      "animal-island-ui/style": "https://esm.sh/animal-island-ui@1.2.0/dist/index.css"
+      "animal-island-ui": "https://esm.sh/animal-island-ui@1.2.0?deps=react@18.3.1,react-dom@18.3.1"
     }
   }
   </script>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" data-type="module" data-presets="react" src="js/app.jsx"></script>
+  <div id="__err" style="color:red;font-family:monospace;white-space:pre-wrap;padding:12px;position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow:auto;background:#fff;z-index:9999;display:none"></div>
+  <script type="module" src="js/app.bundle.js"></script>
+  <script>
+    window.addEventListener('error', function(e) {
+      var el = document.getElementById('__err');
+      el.style.display = 'block';
+      el.textContent += '\nERROR: ' + (e.message || '') + (e.filename ? ' @ ' + e.filename + ':' + e.lineno : '');
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      var el = document.getElementById('__err');
+      el.style.display = 'block';
+      el.textContent += '\nPROMISE: ' + (e.reason && e.reason.message || e.reason);
+    });
+  </script>
 </body>
 </html>

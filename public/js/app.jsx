@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Button, Input, Modal, Switch, Tag } from 'animal-island-ui';
-import 'animal-island-ui/style';
 import { api } from './api.js';
 import { EXAMPLE_PROJECT } from './example.js';
 
@@ -427,7 +426,7 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
   const [view, setView] = useS('table');
   const [filterEp, setFilterEp] = useS('');
   const [filterScene, setFilterScene] = useS('');
-  if (!shots.length) return <Empty tip="生成设定后，点击"生成分镜脚本"" />;
+  if (!shots.length) return <Empty tip="生成设定后，点击右上方生成分镜脚本" />;
   const eps = [...new Set(shots.map(s => s.episode))];
   let filtered = shots;
   if (filterEp) filtered = filtered.filter(s => s.episode == filterEp);
