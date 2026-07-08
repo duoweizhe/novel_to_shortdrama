@@ -1,5 +1,6 @@
 // example.js — 内置示例项目数据（悬疑推理《最后一班电梯》）
-// 按当前项目结构完善：章节管理 + 知识库跨章 + 角色4视图单图 + 全模块结果
+// 基于优化后提示词完善：章节管理 + 知识库跨章 + 角色4视图单图 + 全模块结果
+// 新增字段：角色语言风格/人物关系/选角参考，场景声音设计/色调/构图，分镜声音层次/剪辑转场
 
 export const EXAMPLE_PROJECT = {
   name: '最后一班电梯（示例）',
@@ -47,14 +48,14 @@ export const EXAMPLE_PROJECT = {
   ],
   knowledge: {
     characters: [
-      { id: 'c1', name: '林夏', aliases: ['林记者'], description: '调查记者，28岁，正在追查十四楼失踪案', traits: '冷静、执着、敏锐，遇险时压抑恐惧', appearance: '齐肩短发，冷白肤色，清瘦五官', sourceChapter: '第一章 14楼的停顿' },
-      { id: 'c2', name: '老周', aliases: [], description: '夜班保安，52岁，见过怪事', traits: '谨小慎微，对夜班规矩近乎迷信', appearance: '花白寸头，方脸胡茬', sourceChapter: '第二章 负1层的镜中人影' },
-      { id: 'c3', name: '人影', aliases: [], description: '出现在电梯镜面中的神秘人影', traits: '沉默、诡谲，意图不明', appearance: '身形修长，面容隐于阴影', sourceChapter: '第二章 负1层的镜中人影' },
+      { id: 'c1', name: '林夏', aliases: ['林记者'], description: '调查记者，28岁，正在追查十四楼失踪案', traits: '冷静、执着、敏锐，遇险时压抑恐惧', appearance: '齐肩短发，冷白肤色，清瘦五官', voiceStyle: '短句为主，语气克制冷静，紧张时呼吸急促但不尖叫', relationships: '与老周是相识关系（老周称她"林记者"）；与人影存在被追踪的未知关联', sourceChapter: '第一章 14楼的停顿' },
+      { id: 'c2', name: '老周', aliases: [], description: '夜班保安，52岁，见过怪事', traits: '谨小慎微，对夜班规矩近乎迷信', appearance: '花白寸头，方脸胡茬', voiceStyle: '声音发紧，说话简短急促，带方言口音，紧张时声音压低', relationships: '与林夏是办公楼相识关系，通过监控看到异常后试图警告', sourceChapter: '第二章 负1层的镜中人影' },
+      { id: 'c3', name: '人影', aliases: [], description: '出现在电梯镜面中的神秘人影', traits: '沉默、诡谲，意图不明', appearance: '身形修长，面容隐于阴影', voiceStyle: '全程沉默无声，仅通过肢体动作传达意图', relationships: '与林夏存在未知追踪关系，指向其笔记', sourceChapter: '第二章 负1层的镜中人影' },
     ],
     scenes: [
-      { id: 's1', name: '办公楼夜景', type: '室外', description: '深夜城市中独栋办公楼，玻璃幕墙反射街灯', mood: '孤寂压抑', sourceChapter: '第一章 14楼的停顿' },
-      { id: 's2', name: '电梯轿厢', type: '室内', description: '狭窄不锈钢电梯轿厢，镜面四壁，按键面板发冷光', mood: '幽闭不安', sourceChapter: '第一章 14楼的停顿' },
-      { id: 's3', name: '负1层走廊', type: '室内', description: '地下负1层水泥走廊，墙面粉刷斑驳，灯管惨白', mood: '诡异寒意', sourceChapter: '第二章 负1层的镜中人影' },
+      { id: 's1', name: '办公楼夜景', type: '室外', description: '深夜城市中独栋办公楼，玻璃幕墙反射街灯', mood: '孤寂压抑', lighting: '冷蓝月光与暖黄街灯混合，仅顶层一扇窗亮灯', sourceChapter: '第一章 14楼的停顿' },
+      { id: 's2', name: '电梯轿厢', type: '室内', description: '狭窄不锈钢电梯轿厢，镜面四壁，按键面板发冷光', mood: '幽闭不安', lighting: '顶部惨白日光灯，冷调，金属反射', sourceChapter: '第一章 14楼的停顿' },
+      { id: 's3', name: '负1层走廊', type: '室内', description: '地下负1层水泥走廊，墙面粉刷斑驳，灯管惨白', mood: '诡异寒意', lighting: '冷白日光灯管，部分闪烁，地面反光', sourceChapter: '第二章 负1层的镜中人影' },
     ],
     props: [
       { id: 'p1', name: '调查笔记', description: '林夏挎包中的稿子《十四楼失踪者》', significance: '人影指向的核心道具，推动剧情', sourceChapter: '第一章 14楼的停顿' },
@@ -73,43 +74,57 @@ export const EXAMPLE_PROJECT = {
   results: {
     structure: `## 📐 剧情结构分析
 
-### 1. 核心冲突
-- **一句话故事引擎**：一个追查失踪案的女记者，为了发出真相稿件，必须独自穿过深夜办公楼的电梯，否则将成为下一个失踪者。
+### 1. 核心冲突提炼
+- **一句话故事引擎**：一个追查失踪案的女记者，为了发出真相稿件，必须独自穿过深夜办公楼的电梯，否则将成为下一个失踪者
 - **核心冲突类型**：人 vs 命运（未知超自然力量）
 - **主题/母题**：真相的代价；凝视深渊者被深渊凝视
 
-### 2. 三幕结构
+### 2. 三幕结构划分
 
-#### 第一幕：建置（约25%）
+#### 第一幕：建置（约占全文 25%）
 - **起始状态**：林夏深夜加班，完成《十四楼失踪者》调查稿，准备离开办公楼
 - **激励事件**：电梯在14楼（失踪案发生楼层）无故停下，门外漆黑无人
 - **第一转折点**：电梯不受控制反向坠落至负1层
+- **情节点 I**：林夏被迫面对未知，无法逃离
 
-#### 第二幕：对抗（约50%）
-- **上升行动**：负1层走廊出现与稿子描述一致的划痕，暗示超自然关联
+#### 第二幕：对抗（约占全文 50%）
+- **前半段：上升行动**：负1层走廊出现与稿子描述一致的划痕，暗示超自然关联
 - **中点**：老周对讲机警告"别回头"，外部介入确认危险真实存在
-- **暗夜时刻**：镜中出现身后人影，指向挎包笔记——林夏意识到自己被锁定
+- **后半段：升级对抗**：危险从环境逼近到人身——镜中出现身后人影
+- **第二转折点（暗夜时刻）**：人影指向挎包笔记，林夏意识到自己被锁定
 
-#### 第三幕：解决（约25%）
+#### 第三幕：解决（约占全文 25%）
 - **高潮**：人影抬手指向笔记，灯光骤灭——开放式悬念
 - **结局**：未给出，留白制造恐惧余韵
+- **尾声**：对讲机残余电流声"林……记……"
 
 ### 3. 五个关键转折点
 | 转折点 | 位置 | 事件 | 功能 |
 |--------|------|------|------|
-| 激励事件 | ~15% | 电梯14楼异常停下 | 打破平衡 |
+| 激励事件 | ~15% | 电梯14楼异常停下，门外漆黑 | 打破平衡 |
 | 第一转折 | ~30% | 电梯反向坠落负1层 | 进入冲突 |
-| 中点 | ~50% | 负1层划痕与稿子一致 | 方向转变 |
-| 第二转折 | ~75% | 镜中人影出现 | 跌入谷底 |
-| 高潮 | ~95% | 灯灭 | 最终冲击 |
+| 中点 | ~50% | 负1层划痕与稿子描述一致 | 方向转变 |
+| 第二转折 | ~75% | 镜中人影出现，指向笔记 | 跌入谷底 |
+| 高潮 | ~95% | 灯灭黑屏 | 最终冲击 |
 
 ### 4. 情感曲线
-起始: 2分 → 激励事件: 4分 → 上升: 6分 → 中点: 7分 → 暗夜: 9分 → 高潮: 10分
+[起始: 2分] → [激励事件: 4分] → [上升: 6分] → [中点: 7分] → [升级: 8分] → [暗夜: 9分] → [高潮: 10分] → [结局: 10分]
 
-### 5. 短剧改编骨架
+### 5. 冲突层级
+- **外部冲突**：林夏 vs 超自然力量（电梯异常、人影出现）
+- **内部冲突**：职业本能（追查真相）vs 生存本能（逃离危险）
+- **关系冲突**：林夏与老周的信任（老周的警告是否可信）vs 人影的未知意图
+
+### 6. 节奏建议
+- **该快的地方**：电梯下坠段落（数字快速跳动），用短句和画面震动加速节奏
+- **该慢的地方**：14楼门开的停顿（时间凝固感），镜中人影抬手的动作（慢镜头悬念）
+- **需要留白的地方**：灯灭后的黑屏，仅留对讲机电流声，让恐惧在静默中蔓延
+
+### 7. 短剧改编骨架
 - **建议集数**：1集（60秒竖屏/横屏短片）
-- **每集结尾钩子**：灯灭黑屏 + 老周对讲机残余电流声
-- **改编优先级**：保留全部，无需删减（原文已极简）`,
+- **每集覆盖范围**：全文（原文已极简，无需拆分）
+- **每集结尾钩子**：灯灭黑屏 + 老周对讲机残余电流声"林……记……"
+- **改编优先级**：保留全部情节，无需删减；建议开篇增加5秒办公楼外景空镜建立氛围`,
 
     summary: `## 📊 制作分析报告
 
@@ -120,57 +135,179 @@ export const EXAMPLE_PROJECT = {
 - **建议集数**：1集
 - **每集时长**：60秒
 
-### 2. 改编策略
-- **必须保留**：14楼停顿、楼层下坠、负1层划痕、对讲机警告、镜中人影、灯灭
-- **可删减**：无（原文已极简）
-- **建议原创补充**：开篇可加5秒办公楼外景空镜建立氛围
+### 2. 改编策略（重点）
+- **必须保留的核心情节**：14楼停顿（失踪案楼层暗示）、楼层下坠（失控感）、负1层划痕（超自然关联）、对讲机警告（外部视角确认危险）、镜中人影（视觉恐怖核心）、灯灭（开放式悬念）。每个情节都是情绪递进的关键节点，删减任何一个都会破坏恐惧感的层次构建。
+- **可以删减的内容**：无（原文已极简，每句都有叙事功能）
+- **需要合并/简化的内容**：林夏看手机的细节可与后续14楼停顿合并处理，用快速切换镜头呈现，避免冗长
+- **建议原创补充的内容**：开篇可加5秒办公楼外景空镜建立深夜孤寂氛围；灯灭后可加3秒纯黑屏+电流声，强化余韵
 
 ### 3. 断集建议
+- **第 1 集**：覆盖全文，核心冲突是"调查者被未知力量锁定"，结尾钩子为灯灭黑屏 + 老周电流声"林……记……"
 - 单集结构：外景建立(5s) → 进电梯(4s) → 14楼停顿(8s) → 下坠(6s) → 负1层划痕(5s) → 对讲机(3s) → 镜中人影(6s) → 灯灭黑屏(3s) + 余韵(20s留给音效)
-- 结尾钩子：灯灭 + 老周电流声"林...记..."
 
 ### 4. 角色分析
 - 3个角色，林夏为主视角，老周仅声音出场，人影为视觉恐怖元素
-- 选角：林夏需清瘦冷感气质，人影需高挑身形
+- 角色关系图谱：林夏 ←警告— 老周（监控视角）；林夏 ←追踪— 人影（镜面出现）
+- 选角建议：林夏需清瘦冷感气质，参考万茜/谭卓类型；人影需高挑身形，无需露脸
 
 ### 5. 场景分析
 - 3个场景，电梯轿厢为核心（占80%时长），其余为外景/走廊空镜
-- 拍摄难度：电梯实景或搭景，镜面反射需特殊机位
+- 拍摄难度：电梯实景或搭景，镜面反射需特殊机位（半透镜技巧）
+- 需要特殊场景：负1层走廊的划痕需美术制作，灯管闪烁需灯光控制
 
 ### 6. 制作建议
-- 拍摄手法：建议固定机位+手持微抖，镜面用半透镜技巧
-- 特效需求：楼层显示屏数字下坠、灯光闪烁
-- 预算级别：低（单场景为主）
+- 推荐拍摄手法：固定机位+手持微抖交替，镜面用半透镜技巧制造"人影"效果
+- 特效需求：楼层显示屏数字下坠（后期合成）、灯光闪烁（可控调光器）
+- 预算级别：低（单场景为主，演员少，特效简单）
 - 制作周期：1-2天拍摄 + 1天后期
 
 ### 7. 风险提示
-- 审查：无暴力色情，悬疑恐怖尺度适中
+- 改编难点：镜面人影的视觉效果实现，需测试半透镜反射角度
+- 审查风险：无暴力色情，悬疑恐怖尺度适中，注意灯灭后不要有过多恐怖音效
 - 观众反馈：开放式结局可能两极分化，建议系列化后续集数`,
 
     characters: {
       characters: [
-        { name: '林夏', role: '主角', gender: '女', age: '28', appearance: '齐肩短发，五官清瘦，眼下有疲态，肤色偏冷白', personality: '冷静、执着、有调查记者的敏锐，遇险时压抑恐惧', costume: '黑色高领毛衣，深灰风衣，挎帆布挎包，颈挂工牌', arc: '从自信调查者→被未知力量凝视的猎物', imagePromptZh: '角色设定图，2x2四宫格白色背景，左上：28岁女性面部上半身特写齐肩黑发冷白肤色清瘦五官眼下疲态黑色高领毛衣领口冷调电影光影；右上：正面全身照黑色高领毛衣深灰风衣帆布挎包工牌站姿挺拔；左下：侧面全身照侧脸齐肩发深灰风衣侧身轮廓帆布挎包；右下：背面全身照齐肩发背影深灰风衣背面工牌挂绳。同一角色同一服装一致设计', imagePromptEn: 'character turnaround reference sheet, 2x2 grid on white background, top-left upper-body face close-up of 28yo female shoulder-length black hair pale cold skin lean features tired under-eyes black turtleneck collar cinematic cold-toned lighting; top-right front full-body view black turtleneck dark grey trench coat canvas bag ID lanyard upright stance; bottom-left side profile full-body view side face shoulder-length hair trench coat side silhouette canvas bag; bottom-right back full-body view shoulder-length hair from behind trench coat back ID lanyard, same character same costume consistent design' },
-        { name: '老周', role: '配角', gender: '男', age: '52', appearance: '花白寸头，方脸，眉骨高，下颌胡茬', personality: '谨小慎微，见过怪事，对夜班规矩近乎迷信', costume: '深蓝保安制服，胸前别对讲机，腰间挂手电筒', arc: '旁观者→试图警告却无能为力', imagePromptZh: '角色设定图，2x2四宫格白色背景，左上：52岁男性面部特写花白寸头方脸胡茬眉骨高紧张神情深蓝制服领口；右上：正面全身照深蓝保安制服对讲机手电筒拘谨站姿；左下：侧面全身照花白寸头侧脸深蓝制服侧身胡茬轮廓；右下：背面全身照花白寸头背影深蓝制服背面腰间手电。同一角色同一服装一致设计', imagePromptEn: 'character turnaround reference sheet, 2x2 grid on white background, top-left face close-up of 52yo male grey buzz cut square jaw stubble prominent brow tense expression dark blue uniform collar; top-right front full-body view dark blue security uniform walkie-talkie flashlight restrained stance; bottom-left side profile full-body view grey buzz cut side face dark blue uniform side body stubble silhouette; bottom-right back full-body view grey buzz cut from behind dark blue uniform back waist flashlight, same character same costume consistent design' },
-        { name: '人影', role: '反派/谜团', gender: '未知', age: '不明', appearance: '身形修长，面容隐于阴影，轮廓模糊', personality: '沉默、诡谲，意图不明', costume: '灰色风衣，立领遮住下半张脸，双手苍白', arc: '神秘存在，指向笔记后灯灭', imagePromptZh: '角色设定图，2x2四宫格白色背景，左上：神秘人影面部特写立领风衣遮住下半脸上半脸隐于阴影只见轮廓苍白双手；右上：正面全身照灰色立领风衣面容隐于阴影身形修长双手苍白；左下：侧面全身照灰色风衣侧身轮廓立领遮面修长身形；右下：背面全身照灰色风衣背影立领修长轮廓。同一角色同一服装一致设计悬疑氛围', imagePromptEn: 'character turnaround reference sheet, 2x2 grid on white background, top-left face close-up of mysterious silhouette high-collar trench coat covering lower face upper face hidden in shadow only outline visible pale hands; top-right front full-body view grey high-collar trench coat face hidden in shadow tall slender build pale hands; bottom-left side profile full-body view grey trench coat side silhouette high collar covering face slender build; bottom-right back full-body view grey trench coat from behind high collar slender outline, same character same costume consistent design eerie thriller atmosphere' },
+        {
+          name: '林夏', role: '主角', gender: '女', age: '28',
+          appearance: '齐肩短发，五官清瘦，眼下有疲态，肤色偏冷白，身材纤细',
+          personality: '冷静、执着、有调查记者的敏锐，遇险时压抑恐惧而非崩溃',
+          costume: '黑色高领毛衣，深灰风衣，挎帆布挎包，颈挂工牌',
+          voiceStyle: '短句为主，语气克制冷静，紧张时呼吸急促但不尖叫，习惯用反问确认信息',
+          relationships: '与老周是办公楼相识关系（老周称她"林记者"）；与人影存在被追踪的未知关联',
+          arc: '从自信调查者（主动追查真相）→ 被未知力量凝视的猎物（意识到自己被锁定）',
+          castingReference: '清瘦冷感气质，参考万茜、谭卓、倪妮类型的演员',
+          imagePromptZh: '角色设定图，2x2四宫格白色背景，左上：28岁女性面部上半身特写，齐肩黑色短发，冷白肤色，清瘦五官，眼下有疲态，黑色高领毛衣领口，冷调电影光影；右上：正面全身照，28岁女性，齐肩黑发，黑色高领毛衣，深灰风衣，帆布挎包，颈挂工牌，站姿挺拔；左下：侧面全身照，齐肩发侧脸，深灰风衣侧身轮廓，帆布挎包，纤细身材；右下：背面全身照，齐肩发背影，深灰风衣背面，工牌挂绳，帆布挎包。同一角色同一服装一致设计',
+          imagePromptEn: 'character turnaround reference sheet, 2x2 grid on white background, top-left upper-body face close-up of 28yo female shoulder-length black hair pale cold skin lean features tired under-eyes black turtleneck collar cinematic cold-toned lighting; top-right front full-body view 28yo female shoulder-length black hair black turtleneck dark grey trench coat canvas shoulder bag ID lanyard upright stance slender build; bottom-left side profile full-body view side face shoulder-length hair dark grey trench coat side silhouette canvas bag slender figure; bottom-right back full-body view shoulder-length hair from behind dark grey trench coat back ID lanyard canvas bag, same character same costume consistent design',
+        },
+        {
+          name: '老周', role: '配角', gender: '男', age: '52',
+          appearance: '花白寸头，方脸，眉骨高，下颌胡茬，皮肤粗糙',
+          personality: '谨小慎微，见过怪事，对夜班规矩近乎迷信，内心善良但胆小',
+          costume: '深蓝保安制服，胸前别对讲机，腰间挂手电筒，黑色皮鞋',
+          voiceStyle: '声音发紧，说话简短急促，带轻微方言口音，紧张时声音压低到气声',
+          relationships: '与林夏是办公楼相识关系，通过监控看到异常后试图警告她',
+          arc: '旁观者（见过怪事但不敢深究）→ 试图警告却无能为力（只能通过对讲机喊话）',
+          castingReference: '沧桑质朴气质，参考王传君、章宇类型的演员',
+          imagePromptZh: '角色设定图，2x2四宫格白色背景，左上：52岁男性面部特写，花白寸头，方脸，胡茬，眉骨高，紧张神情，粗糙皮肤，深蓝制服领口；右上：正面全身照，52岁男性，花白寸头，深蓝保安制服，胸前对讲机，腰间手电筒，拘谨站姿；左下：侧面全身照，花白寸头侧脸，深蓝制服侧身，胡茬轮廓；右下：背面全身照，花白寸头背影，深蓝制服背面，腰间手电筒。同一角色同一服装一致设计',
+          imagePromptEn: 'character turnaround reference sheet, 2x2 grid on white background, top-left face close-up of 52yo male grey buzz cut square jaw stubble prominent brow tense expression rough skin dark blue uniform collar; top-right front full-body view 52yo male grey buzz cut dark blue security uniform walkie-talkie on chest flashlight on waist restrained stance black shoes; bottom-left side profile full-body view grey buzz cut side face dark blue uniform side body stubble silhouette; bottom-right back full-body view grey buzz cut from behind dark blue uniform back waist flashlight, same character same costume consistent design',
+        },
+        {
+          name: '人影', role: '反派/谜团', gender: '未知', age: '不明',
+          appearance: '身形修长，面容隐于阴影，轮廓模糊，双手苍白',
+          personality: '沉默、诡谲，意图不明，行动缓慢而刻意',
+          costume: '灰色风衣，立领遮住下半张脸，双手苍白，无可见配饰',
+          voiceStyle: '全程沉默无声，仅通过缓慢的肢体动作传达意图',
+          relationships: '与林夏存在未知追踪关系，指向其挎包笔记，意图不明',
+          arc: '神秘存在（突然出现在镜中）→ 指向笔记（锁定目标）→ 灯灭（意图未明）',
+          castingReference: '高挑修长身形，无需露脸，参考恐怖片中的沉默追踪者类型',
+          imagePromptZh: '角色设定图，2x2四宫格白色背景，左上：神秘人影面部特写，灰色立领风衣遮住下半脸，上半脸隐于阴影只见轮廓，苍白双手；右上：正面全身照，灰色立领风衣，面容隐于阴影，身形修长，双手苍白垂下；左下：侧面全身照，灰色风衣侧身轮廓，立领遮面，修长身形；右下：背面全身照，灰色风衣背影，立领，修长轮廓。同一角色同一服装一致设计，悬疑恐怖氛围',
+          imagePromptEn: 'character turnaround reference sheet, 2x2 grid on white background, top-left face close-up of mysterious silhouette grey high-collar trench coat covering lower face upper face hidden in shadow only outline visible pale hands; top-right front full-body view grey high-collar trench coat face hidden in shadow tall slender build pale hands hanging down; bottom-left side profile full-body view grey trench coat side silhouette high collar covering face slender build; bottom-right back full-body view grey trench coat from behind high collar slender outline, same character same costume consistent design eerie thriller atmosphere',
+        },
       ],
     },
     scenes: {
       scenes: [
-        { name: '办公楼夜景', environment: '深夜城市中独栋办公楼外景，玻璃幕墙反射街灯', mood: '孤寂、压抑、潜伏危机', lighting: '冷蓝月光与暖黄街灯混合，仅顶层一扇窗亮灯', timeOfDay: '深夜', narrativeFunction: '建置', keyProps: '无', imagePromptZh: '深夜城市中一栋办公楼外景，玻璃幕墙，冷蓝月光与暖黄街灯，仅顶层一扇窗亮着灯光，街面空无一人，压抑孤寂，电影感广角，16:9', imagePromptEn: 'wide shot of a lone office tower at night, glass curtain wall, cold blue moonlight mixed with warm street lamps, only one top-floor window lit, empty street, oppressive lonely mood, cinematic wide-angle, 16:9' },
-        { name: '电梯轿厢', environment: '狭窄不锈钢电梯轿厢，镜面四壁，按键面板发冷光', mood: '幽闭、不安、孤立无援', lighting: '顶部惨白日光灯，冷调，金属反射', timeOfDay: '深夜', narrativeFunction: '激励/上升', keyProps: '按键面板、镜面', imagePromptZh: '狭窄不锈钢电梯轿厢内景，镜面四壁，按键面板泛冷光，顶部惨白日光灯，金属反射，幽闭不安氛围，电影感，16:9', imagePromptEn: 'interior of narrow stainless-steel elevator car, mirrored walls, cold-glowing button panel, harsh white ceiling fluorescent, metallic reflections, claustrophobic uneasy mood, cinematic, 16:9' },
-        { name: '负1层走廊', environment: '地下负1层水泥走廊，墙面粉刷斑驳，灯管惨白', mood: '诡异、寒意、危险逼近', lighting: '冷白日光灯管，部分闪烁，地面反光', timeOfDay: '深夜', narrativeFunction: '至暗时刻', keyProps: '墙面划痕', imagePromptZh: '地下负1层水泥走廊，斑驳墙面，惨白日光灯管部分闪烁，地面反光，尽头隐入黑暗，诡异寒意，电影感纵深构图，16:9', imagePromptEn: 'underground B1 concrete corridor, peeling walls, pale flickering fluorescent tubes, glossy reflective floor, vanishing into darkness at the end, eerie chilling mood, cinematic depth composition, 16:9' },
+        {
+          name: '办公楼夜景', environment: '深夜城市中独栋办公楼外景，玻璃幕墙反射街灯，周围无行人车辆', mood: '孤寂、压抑、潜伏危机', lighting: '冷蓝月光与暖黄街灯混合，仅顶层一扇窗亮灯，对比强烈', timeOfDay: '深夜', narrativeFunction: '建置', keyProps: '无',
+          soundDesign: '远处交通低频噪音渐弱，风声，偶尔的远车声，低沉的氛围弦乐铺底',
+          colorPalette: '主色冷蓝(#1a2a3e)/惨白(#f0f0e8)，辅色暖黄(#d4a843)街灯点缀',
+          compositionHint: '办公楼居中偏右，左侧留空强化孤寂感，视觉引导线从街面向上延伸至亮灯窗户',
+          imagePromptZh: '深夜城市中一栋办公楼外景，玻璃幕墙反射冷蓝月光与暖黄街灯，仅顶层一扇窗亮着灯光，街面空无一人，孤寂压抑氛围，冷蓝主色调暖黄点缀，建筑居中偏右构图，电影感广角，16:9',
+          imagePromptEn: 'wide shot of a lone office tower at night, glass curtain wall reflecting cold blue moonlight and warm street lamps, only one top-floor window lit, empty street, oppressive lonely mood, cold blue main tone with warm yellow accents, building centered-right composition, cinematic wide-angle, 16:9',
+        },
+        {
+          name: '电梯轿厢', environment: '狭窄不锈钢电梯轿厢，镜面四壁，按键面板发冷光，空间逼仄', mood: '幽闭、不安、孤立无援', lighting: '顶部惨白日光灯，冷调，金属反射，灯灭前有微弱闪烁', timeOfDay: '深夜', narrativeFunction: '激励/上升', keyProps: '按键面板、镜面四壁',
+          soundDesign: '日光灯电流嗡鸣（持续低频），按键电子音，门开关机械声，灯灭瞬间的电流中断声',
+          colorPalette: '主色惨白(#f0f0e8)/不锈钢银(#c0c0c0)，辅色冷蓝(#1a2a3e)阴影',
+          compositionHint: '对称构图强化幽闭感，镜面反射制造纵深错觉，人物偏左或偏右留出镜面空间',
+          imagePromptZh: '狭窄不锈钢电梯轿厢内景，镜面四壁反射，按键面板泛冷白光，顶部惨白日光灯，金属反射，幽闭不安氛围，惨白主色调不锈钢银辅色，对称构图，电影感，16:9',
+          imagePromptEn: 'interior of narrow stainless-steel elevator car, mirrored walls reflecting, cold-glowing button panel, harsh white ceiling fluorescent, metallic reflections, claustrophobic uneasy mood, pale white main tone stainless steel silver accent, symmetrical composition, cinematic, 16:9',
+        },
+        {
+          name: '负1层走廊', environment: '地下负1层水泥走廊，墙面粉刷斑驳，灯管惨白，尽头隐入黑暗', mood: '诡异、寒意、危险逼近', lighting: '冷白日光灯管，部分闪烁，地面反光，尽头无灯形成明暗对比', timeOfDay: '深夜', narrativeFunction: '至暗时刻', keyProps: '墙面划痕',
+          soundDesign: '灯管电流嗞嗞声（间歇），空旷回声，远处水管滴水声，低频不安氛围音',
+          colorPalette: '主色冷白(#e8e8e0)/水泥灰(#8a8a80)，辅色暗黑(#0a0a0a)尽头阴影',
+          compositionHint: '单点透视纵深构图，走廊向远处收缩，灯管引导视线至黑暗尽头，划痕位于墙面黄金分割点',
+          imagePromptZh: '地下负1层水泥走廊，斑驳墙面，惨白日光灯管部分闪烁，墙面一道新鲜划痕，地面反光，尽头隐入黑暗，诡异寒意氛围，冷白主色调水泥灰辅色，纵深构图，电影感，16:9',
+          imagePromptEn: 'underground B1 concrete corridor, peeling walls, pale flickering fluorescent tubes, fresh scratch on wall, glossy reflective floor, vanishing into darkness at the end, eerie chilling mood, cold white main tone concrete grey accent, depth perspective composition, cinematic, 16:9',
+        },
       ],
     },
     storyboard: {
       shots: [
-        { episode: 1, sceneNo: 1, shotNo: 1, shotType: '远景', cameraAngle: '平视', cameraMove: '推', visual: '深夜城市中独栋办公楼外景，玻璃幕墙反射街灯，仅顶层一扇窗亮着灯光', dialogue: '', action: '镜头缓慢推近办公楼', duration: 5, emotion: 3, characterNames: [], sceneName: '办公楼夜景', promptZh: '远景，深夜城市中独栋办公楼外景，玻璃幕墙反射冷蓝月光与暖黄街灯，仅顶层一扇窗亮灯，街面空旷，镜头缓慢推近，电影感冷调悬疑，16:9', promptEn: 'Wide shot, lone office tower at night, glass curtain wall reflecting cold blue moonlight and warm street lamps, single lit top-floor window, empty street, slow dolly-in, cinematic cold thriller tone, 16:9' },
-        { episode: 1, sceneNo: 2, shotNo: 1, shotType: '中景', cameraAngle: '平视', cameraMove: '固定', visual: '林夏走进电梯轿厢，转身按下1层按键', dialogue: '', action: '林夏走进电梯转身按键，门缓缓合上', duration: 4, emotion: 2, characterNames: ['林夏'], sceneName: '电梯轿厢', promptZh: '中景，齐肩短发女记者穿黑色高领毛衣与深灰风衣走进不锈钢电梯，转身按1层按键，门缓缓合上，惨白顶灯，镜面反射，冷调电影感，16:9', promptEn: 'Medium shot, shoulder-length-haired female journalist in black turtleneck and dark grey trench coat enters stainless-steel elevator, turns and presses floor-1 button, doors slowly close, harsh white ceiling light, mirror reflections, cold cinematic tone, 16:9' },
-        { episode: 1, sceneNo: 2, shotNo: 2, shotType: '特写', cameraAngle: '平视', cameraMove: '固定', visual: '电梯按键面板，1层按键亮起冷光', dialogue: '', action: '固定镜头，按键数字1亮起', duration: 2, emotion: 2, characterNames: [], sceneName: '电梯轿厢', promptZh: '特写，电梯不锈钢按键面板，数字1按键亮起冷白光，金属反光，景深虚化，冷调悬疑，16:9', promptEn: 'Close-up, stainless-steel elevator button panel, number 1 button glowing cold white, metallic reflection, shallow depth of field, cold thriller tone, 16:9' },
-        { episode: 1, sceneNo: 2, shotNo: 3, shotType: '中景', cameraAngle: '平视', cameraMove: '固定', visual: '电梯在14楼停下，门缓缓打开，门外走廊漆黑无人', dialogue: '', action: '门开，林夏抬头望向门外黑暗', duration: 5, emotion: 5, characterNames: ['林夏'], sceneName: '电梯轿厢', promptZh: '中景，不锈钢电梯在14楼停下门缓缓打开，门外走廊漆黑无人，短发女记者抬头望向黑暗，惨白顶灯，镜面反射，紧张氛围，电影感，16:9', promptEn: 'Medium shot, stainless-steel elevator stops at floor 14, doors slowly open to pitch-black empty corridor, short-haired female journalist looks up into darkness, harsh white ceiling light, mirror reflections, tense mood, cinematic, 16:9' },
-        { episode: 1, sceneNo: 2, shotNo: 4, shotType: '近景', cameraAngle: '平视', cameraMove: '固定', visual: '林夏皱眉，连续按下关门键', dialogue: '', action: '手指反复按关门键，神情焦虑', duration: 3, emotion: 6, characterNames: ['林夏'], sceneName: '电梯轿厢', promptZh: '近景，齐肩短发女记者皱眉，手指反复按下关门键，神情焦虑压抑，惨白顶灯，冷调，电影感，16:9', promptEn: 'Close shot, shoulder-length-haired female journalist frowns, finger repeatedly pressing close-door button, anxious restrained expression, harsh white light, cold tone, cinematic, 16:9' },
-        { episode: 1, sceneNo: 2, shotNo: 5, shotType: '特写', cameraAngle: '平视', cameraMove: '手持', visual: '楼层显示屏数字快速下降：13、10、7、4、负1', dialogue: '', action: '数字跳动下行，画面微微震动', duration: 3, emotion: 7, characterNames: [], sceneName: '电梯轿厢', promptZh: '特写，电梯楼层显示屏数字快速下降13到负1，红色数字跳动，画面微震，冷调悬疑，16:9', promptEn: 'Close-up, elevator floor display numbers rapidly descending 13 to B1, red digits flickering, slight camera shake, cold thriller tone, 16:9' },
-        { episode: 1, sceneNo: 3, shotNo: 1, shotType: '中景', cameraAngle: '平视', cameraMove: '移', visual: '负1层走廊门开，惨白灯管下墙面有一道新鲜划痕', dialogue: '', action: '镜头从电梯内望向走廊，灯光闪烁', duration: 5, emotion: 8, characterNames: [], sceneName: '负1层走廊', promptZh: '中景，负1层走廊门开，惨白日光灯管部分闪烁，斑驳墙面上一道新鲜划痕，地面反光，尽头黑暗，诡异寒意，纵深构图，电影感，16:9', promptEn: 'Medium shot, B1 corridor door opens, pale flickering fluorescent tubes, fresh scratch on peeling wall, glossy reflective floor, darkness at the end, eerie chilling mood, depth composition, cinematic, 16:9' },
-        { episode: 1, sceneNo: 2, shotNo: 6, shotType: '近景', cameraAngle: '平视', cameraMove: '推', visual: '电梯镜面里，林夏身后站着一个穿灰色风衣的人影，人影抬手指向挎包', dialogue: '老周(对讲机): 林记者，你别回头。', action: '林夏僵住，人影缓缓抬手', duration: 6, emotion: 10, characterNames: ['林夏', '人影'], sceneName: '电梯轿厢', promptZh: '近景，电梯镜面反射中，短发女记者身后站着一个穿灰色立领风衣的人影，面容隐于阴影，人影缓缓抬手指向挎包，惨白顶灯骤灭前一刻，惊悚悬疑，电影感，16:9', promptEn: 'Close shot, elevator mirror reflection, short-haired female journalist with a grey high-collar trench-coat silhouette standing behind her, face hidden in shadow, silhouette slowly raising hand pointing at her shoulder bag, moment before white light cuts out, horror thriller mood, cinematic, 16:9' },
+        {
+          episode: 1, sceneNo: 1, shotNo: 1, shotType: '远景', cameraAngle: '平视', cameraMove: '推',
+          visual: '深夜城市中独栋办公楼外景，玻璃幕墙反射街灯，仅顶层一扇窗亮着灯光', dialogue: '', action: '镜头缓慢推近办公楼',
+          duration: 5, emotion: 3, characterNames: [], sceneName: '办公楼夜景',
+          soundDesign: '远处交通低频噪音渐弱 + 低沉氛围弦乐铺底 + 风声',
+          transition: '叠化',
+          promptZh: '远景，深夜城市中独栋办公楼外景，玻璃幕墙反射冷蓝月光与暖黄街灯，仅顶层一扇窗亮灯，街面空旷无人，冷蓝主色调，镜头缓慢推近，孤寂压抑氛围，电影感冷调悬疑，16:9',
+          promptEn: 'Wide shot, lone office tower at night, glass curtain wall reflecting cold blue moonlight and warm street lamps, single lit top-floor window, empty street, cold blue main tone, slow dolly-in, oppressive lonely atmosphere, cinematic cold thriller tone, 16:9',
+        },
+        {
+          episode: 1, sceneNo: 2, shotNo: 1, shotType: '中景', cameraAngle: '平视', cameraMove: '固定',
+          visual: '林夏走进电梯轿厢，转身按下1层按键', dialogue: '', action: '林夏走进电梯转身按键，门缓缓合上',
+          duration: 4, emotion: 2, characterNames: ['林夏'], sceneName: '电梯轿厢',
+          soundDesign: '日光灯电流嗡鸣 + 脚步声 + 按键电子音 + 门关闭机械声',
+          transition: '硬切',
+          promptZh: '中景，28岁齐肩短发女记者穿黑色高领毛衣与深灰风衣走进不锈钢电梯轿厢，转身按1层按键，门缓缓合上，惨白顶灯，镜面四壁反射，冷调电影感，幽闭氛围，16:9',
+          promptEn: 'Medium shot, 28yo female with shoulder-length black hair in black turtleneck and dark grey trench coat enters narrow stainless-steel elevator car, turns and presses floor-1 button, doors slowly close, harsh white ceiling light, mirrored walls reflecting, cold cinematic tone, claustrophobic atmosphere, 16:9',
+        },
+        {
+          episode: 1, sceneNo: 2, shotNo: 2, shotType: '特写', cameraAngle: '平视', cameraMove: '固定',
+          visual: '电梯按键面板，1层按键亮起冷光', dialogue: '', action: '固定镜头，按键数字1亮起',
+          duration: 2, emotion: 2, characterNames: [], sceneName: '电梯轿厢',
+          soundDesign: '按键电子音（清脆） + 电流嗡鸣持续',
+          transition: '硬切',
+          promptZh: '特写，电梯不锈钢按键面板，数字1按键亮起冷白光，金属反光，景深虚化，惨白主色调，冷调悬疑，16:9',
+          promptEn: 'Close-up, stainless-steel elevator button panel, number 1 button glowing cold white, metallic reflection, shallow depth of field, pale white main tone, cold thriller tone, 16:9',
+        },
+        {
+          episode: 1, sceneNo: 2, shotNo: 3, shotType: '中景', cameraAngle: '平视', cameraMove: '固定',
+          visual: '电梯在14楼停下，门缓缓打开，门外走廊漆黑无人', dialogue: '', action: '门开，林夏抬头望向门外黑暗',
+          duration: 5, emotion: 5, characterNames: ['林夏'], sceneName: '电梯轿厢',
+          soundDesign: '叮声（楼层到达提示） + 门开机械声 + 突然安静（门外无声） + 低频不安音渐入',
+          transition: '硬切',
+          promptZh: '中景，不锈钢电梯在14楼停下门缓缓打开，门外走廊漆黑无人，28岁齐肩短发女记者穿深灰风衣抬头望向黑暗，惨白顶灯，镜面四壁反射，紧张氛围，冷调电影感，16:9',
+          promptEn: 'Medium shot, stainless-steel elevator stops at floor 14, doors slowly open to pitch-black empty corridor, 28yo female with shoulder-length hair in dark grey trench coat looks up into darkness, harsh white ceiling light, mirrored walls reflecting, tense mood, cold cinematic tone, 16:9',
+        },
+        {
+          episode: 1, sceneNo: 2, shotNo: 4, shotType: '近景', cameraAngle: '平视', cameraMove: '固定',
+          visual: '林夏皱眉，连续按下关门键', dialogue: '', action: '手指反复按关门键，神情焦虑',
+          duration: 3, emotion: 6, characterNames: ['林夏'], sceneName: '电梯轿厢',
+          soundDesign: '连续按键声（急促） + 呼吸声加重 + 低频弦乐渐强',
+          transition: '硬切',
+          promptZh: '近景，28岁齐肩短发女记者冷白肤色皱眉，手指反复按下关门键，神情焦虑压抑，惨白顶灯，冷调，紧张氛围，电影感，16:9',
+          promptEn: 'Close shot, 28yo female with shoulder-length black hair pale cold skin frowns, finger repeatedly pressing close-door button, anxious restrained expression, harsh white ceiling light, cold tone, tense atmosphere, cinematic, 16:9',
+        },
+        {
+          episode: 1, sceneNo: 2, shotNo: 5, shotType: '特写', cameraAngle: '平视', cameraMove: '手持',
+          visual: '楼层显示屏数字快速下降：13、10、7、4、负1', dialogue: '', action: '数字跳动下行，画面微微震动',
+          duration: 3, emotion: 7, characterNames: [], sceneName: '电梯轿厢',
+          soundDesign: '数字跳动电子音（加速） + 画面震动低频轰鸣 + 弦乐急促上行',
+          transition: '跳切',
+          promptZh: '特写，电梯楼层显示屏数字快速下降13到负1，红色数字跳动闪烁，画面微震，惨白背景，冷调悬疑紧张，16:9',
+          promptEn: 'Close-up, elevator floor display numbers rapidly descending 13 to B1, red digits flickering, slight camera shake, pale white background, cold thriller tense tone, 16:9',
+        },
+        {
+          episode: 1, sceneNo: 3, shotNo: 1, shotType: '中景', cameraAngle: '平视', cameraMove: '移',
+          visual: '负1层走廊门开，惨白灯管下墙面有一道新鲜划痕', dialogue: '', action: '镜头从电梯内望向走廊，灯光闪烁',
+          duration: 5, emotion: 8, characterNames: [], sceneName: '负1层走廊',
+          soundDesign: '灯管嗞嗞声（间歇闪烁同步） + 空旷回声 + 水管滴水声 + 低频不安氛围音',
+          transition: '声音桥接',
+          promptZh: '中景，地下负1层水泥走廊门开，惨白日光灯管部分闪烁，斑驳墙面上一道新鲜划痕，地面反光，尽头隐入黑暗，冷白主色调水泥灰辅色，诡异寒意氛围，纵深构图，电影感，16:9',
+          promptEn: 'Medium shot, underground B1 concrete corridor door opens, pale flickering fluorescent tubes, fresh scratch on peeling wall, glossy reflective floor, vanishing into darkness at the end, cold white main tone concrete grey accent, eerie chilling mood, depth perspective composition, cinematic, 16:9',
+        },
+        {
+          episode: 1, sceneNo: 2, shotNo: 6, shotType: '近景', cameraAngle: '平视', cameraMove: '推',
+          visual: '电梯镜面里，林夏身后站着一个穿灰色风衣的人影，人影抬手指向挎包', dialogue: '老周(对讲机): 林记者，你别回头。', action: '林夏僵住，人影缓缓抬手',
+          duration: 6, emotion: 10, characterNames: ['林夏', '人影'], sceneName: '电梯轿厢',
+          soundDesign: '对讲机电流声 + 老周压低气声 "林记者，你别回头" + 心跳声加速 + 弦乐升至最高 + 灯灭瞬间电流中断声',
+          transition: '硬切至黑屏',
+          promptZh: '近景，电梯镜面四壁反射中，28岁齐肩短发女记者穿深灰风衣身后站着一个穿灰色立领风衣的修长人影，面容隐于阴影，人影缓缓抬手指向帆布挎包，惨白顶灯骤灭前一刻，惊悚悬疑，冷调电影感，16:9',
+          promptEn: 'Close shot, elevator mirrored walls reflection, 28yo female with shoulder-length hair in dark grey trench coat with a tall slender grey high-collar trench coat silhouette standing behind her, face hidden in shadow, silhouette slowly raising hand pointing at canvas shoulder bag, moment before white light cuts out, horror thriller mood, cold cinematic tone, 16:9',
+        },
       ],
     },
     script: `## 📝 短剧脚本
@@ -185,68 +322,113 @@ export const EXAMPLE_PROJECT = {
 ### 剧情大纲
 调查记者林夏深夜加班后独自乘电梯下楼，电梯在失踪案发生的14楼异常停下，随后反向坠至负1层。负1层走廊的划痕与她正在调查的稿子描述一致，对讲机传来保安老周的警告，镜中出现神秘人影指向她的笔记——灯灭。
 
-### 第1集：最后一班电梯
+### 第 1 集：最后一班电梯
 
-#### 场景1：办公楼外景 - 深夜 - 室外
-（远景，冷蓝月光下独栋办公楼，仅顶层一扇窗亮灯，街面空无一人。镜头缓慢推近。）
+#### 场景 1：办公楼外景 - 深夜 - 室外
+- **时间**：凌晨1点
+- **地点**：城市办公楼外
+- **人物**：无
+- **画面描述**：远景，冷蓝月光下独栋办公楼，玻璃幕墙反射街灯，仅顶层一扇窗亮灯，街面空无一人。镜头缓慢推近。
+- **音效/BGM**：远处交通低频噪音渐弱，低沉氛围弦乐铺底，风声
+- **[转场设计]**：叠化至电梯内景，声音从风声过渡到日光灯电流嗡鸣
 
-#### 场景2：电梯轿厢 - 深夜 - 室内
-（林夏走进不锈钢电梯，转身按1层。门合上，惨白日光灯嗡鸣。）
+#### 场景 2：电梯轿厢 - 深夜 - 室内
+- **时间**：凌晨1点
+- **地点**：办公楼电梯
+- **人物**：林夏
+- **画面描述**：中景，林夏走进不锈钢电梯，转身按1层。门合上，惨白日光灯嗡鸣。镜面四壁反射她清瘦的身影。
 
-**林夏**：（低头看手机，疲惫但专注，手指滑动屏幕上的稿子《十四楼失踪者》）
+**林夏**：（低头看手机，疲惫但专注，手指滑动屏幕上的稿子《十四楼失踪者》。语气平静自语）"就差最后核实……"
+  - 潜台词：这篇稿子是她追查多日的心血，必须今晚发出去
 
 （叮。14楼。门开，走廊漆黑无人。林夏皱眉连按关门键。门合上，电梯反向坠落。楼层：13、10、7、4、负1。）
 
-**林夏**：（呼吸急促，手紧握挎包带，眼神从困惑转为警觉）
-> 潜台词：稿子里写的那些……是真的？
+**林夏**：（呼吸急促，手紧握挎包带，眼神从困惑转为警觉。克制低声）"不对……"
+  - 潜台词：稿子里写的那些异常……是真的？
 
-#### 场景3：负1层走廊 - 深夜 - 室内
-（门开。惨白灯管闪烁，墙面一道新鲜划痕。）
+- **音效/BGM**：叮声 → 门开机械声 → 突然安静 → 连续按键声急促 → 数字跳动电子音加速 → 低频轰鸣 → 弦乐急促上行
+- **[转场设计]**：跳切至楼层显示屏特写，数字快速下坠制造失重感
 
-#### 场景4：电梯轿厢 - 深夜 - 室内
-**老周**：（对讲机电流声，声音发紧）"林记者，你别回头。"
-> 潜台词：我看到监控了，你身后有东西
+#### 场景 3：负1层走廊 - 深夜 - 室内
+- **时间**：凌晨1点后
+- **地点**：地下负1层走廊
+- **人物**：无
+- **画面描述**：中景，门开。惨白灯管闪烁，墙面一道新鲜划痕——与稿子描述一模一样。镜头从电梯内望向走廊，纵深构图，尽头黑暗。
+- **音效/BGM**：灯管嗞嗞声间歇 + 空旷回声 + 水管滴水声 + 低频不安氛围音
+- **[转场设计]**：声音桥接——滴水声延续，对讲机电流声渐入
+
+#### 场景 4：电梯轿厢 - 深夜 - 室内
+- **时间**：凌晨1点后
+- **地点**：办公楼电梯
+- **人物**：林夏、人影（镜中）、老周（对讲机声音）
+
+**老周**：（对讲机电流声，声音发紧，气声急促）"林记者，你别回头。"
+  - 潜台词：我看到监控了，你身后有东西，我不敢说太清楚
 
 （林夏僵住。镜面中，身后站着一个穿灰色风衣的人影，面容隐于阴影。人影缓缓抬手，指向挎包里的笔记。）
 
+**林夏**：（瞳孔放大，嘴唇微张但无声，身体僵直不敢动）
+  - 潜台词：它……在找我的稿子？
+
 （灯，灭了。黑屏。对讲机残余电流声：林……记……）
+
+- **音效/BGM**：对讲机电流声 + 老周气声 + 心跳声加速至最强 + 弦乐升至最高 → 灯灭瞬间电流中断声 → 2秒纯黑屏静默 → 残余电流声"林……记……"渐弱
+- **[转场设计]**：硬切至黑屏，所有声音骤停2秒后仅留对讲机残余电流声
 
 ### 本集要点
 - **核心冲突**：真相调查者 vs 未知超自然力量
 - **情感高潮**：镜中人影抬手指向笔记（10分）
-- **结尾钩子**：灯灭黑屏 + 老周电流声残留——开放式悬念
+- **结尾钩子**：灯灭黑屏 + 老周电流声残留"林……记……"——开放式悬念
 
-### 表演指导
-- **林夏**：全程压抑情绪，恐惧通过微表情（皱眉、呼吸、手指动作）传达，避免夸张尖叫
-- **节奏**：前40秒缓慢建立不安，后20秒急转直下到高潮`,
+---
+
+**请确保**：
+1. 节奏紧凑，对白自然，适合短视频平台传播
+2. 对白有潜台词，不是直白的信息传递
+3. 表演指导具体可执行，导演和演员能直接理解
+4. 转场设计有情绪目的，不是简单的硬切
+5. 画面描述使用电影化语言，不是小说叙述`,
+
     assets: `## 🎨 视觉资产设计
 
-### 0. 全局视觉风格
-- **整体风格**：电影感冷调悬疑，参考《咒怨》《午夜凶铃》的密闭空间恐怖
+### 0. 全局视觉风格定义
+- **整体风格**：电影感冷调悬疑，参考《咒怨》《午夜凶铃》的密闭空间恐怖美学
 - **色调体系**：主色冷蓝(#1a2a3e)/惨白(#f0f0e8)，辅色暖黄(#d4a843)街灯点缀，点缀血红(#8b0000)危险暗示
+- **参考作品**：《咒怨》（密闭空间镜面恐怖）、《信条》（冷调反转质感）、《午夜凶铃》（日常空间中的超自然恐怖）
 - **通用风格后缀**：cinematic lighting, 8k, cold tone, film grain, shallow depth of field
-- **通用负面后缀**：cartoon, anime, warm colors, bright daylight
+- **通用负面后缀**：cartoon, anime, warm colors, bright daylight, oversaturated
 
-### 1. 角色立绘 Prompt
-参见角色设定卡，每个角色含单张4视图设定图（面部/正面/侧面/背面）。
+### 1. 角色立绘
+为每个主要角色生成：
+- **林夏全身立绘 Prompt**：28yo female journalist, shoulder-length black hair, pale cold skin, lean features, black turtleneck, dark grey trench coat, canvas shoulder bag, ID lanyard, standing pose, cold expression, cinematic lighting, 8k, cold tone, film grain
+- **林夏半身像 Prompt**：28yo female journalist upper body, shoulder-length black hair, pale cold skin, tired under-eyes, black turtleneck collar, cold cinematic lighting, shallow depth of field, 8k, film grain
+- **林夏表情包 Prompt**：5 emotions face close-up sheet, 28yo female, shoulder-length black hair, pale skin, expressions: calm/focused/anxious/fearful/shocked, black turtleneck, cold lighting, 8k
+- **林夏标志性动作 Prompt**：female journalist gripping shoulder bag strap tightly, knuckles white, tense posture, shoulder-length hair, dark grey trench coat, cold lighting, cinematic, 8k
+- **老周全身立绘 Prompt**：52yo male security guard, grey buzz cut, square jaw, stubble, dark blue uniform, walkie-talkie on chest, flashlight on waist, restrained tense pose, cinematic lighting, 8k, cold tone
+- **人影全身立绘 Prompt**：mysterious tall slender silhouette, grey high-collar trench coat, face hidden in shadow, pale hands hanging down, eerie thriller atmosphere, cinematic lighting, 8k, cold dark tone
 
-### 2. 关键场景图 Prompt
-- **办公楼夜景**：wide shot lone office tower night, glass curtain wall, cold blue moonlight, single lit window, empty street, cinematic, 8k
-- **电梯轿厢**：narrow stainless steel elevator interior, mirrored walls, cold fluorescent light, metallic reflections, claustrophobic, cinematic, 8k
-- **负1层走廊**：underground B1 concrete corridor, flickering fluorescent, peeling wall with scratch, glossy floor, darkness at end, eerie, cinematic, 8k
+### 2. 关键场景图
+- **办公楼夜景全景 Prompt**：wide shot lone office tower at night, glass curtain wall, cold blue moonlight, single lit top-floor window, empty street, cinematic, 8k, cold tone, film grain
+- **办公楼夜景细节 Prompt**：close-up of single lit top-floor window at night, glass curtain wall reflection, cold blue moonlight, ominous feeling, cinematic, 8k
+- **电梯轿厢全景 Prompt**：narrow stainless steel elevator interior, mirrored walls, cold fluorescent light, metallic reflections, claustrophobic, cinematic, 8k, cold tone
+- **电梯轿厢细节 Prompt**：close-up elevator button panel, floor 1 glowing cold white, stainless steel reflection, shallow depth of field, cinematic, 8k
+- **负1层走廊全景 Prompt**：underground B1 concrete corridor, flickering fluorescent, peeling wall with scratch, glossy floor, darkness at end, eerie, cinematic, 8k
+- **负1层走廊细节 Prompt**：close-up of fresh scratch on peeling concrete wall, flickering fluorescent light, eerie atmosphere, cinematic, 8k
 
-### 3. 道具 Prompt
-- **调查笔记**：worn leather notebook, handwritten pages, journalist notes, dim cold light, close-up, cinematic, 8k
-- **对讲机**：old walkie-talkie, crackling static, dim green LED, security equipment, close-up, cinematic, 8k
+### 3. 道具/物品
+- **调查笔记 Prompt**：worn leather notebook, handwritten pages titled "十四楼失踪者", journalist notes, dim cold light, close-up, cinematic, 8k
+- **对讲机 Prompt**：old walkie-talkie, crackling static, dim green LED, security equipment, close-up, cold light, cinematic, 8k
+- **墙面划痕 Prompt**：fresh scratch on peeling concrete wall, flickering fluorescent light, eerie, close-up, cinematic, 8k
 
 ### 4. 封面/海报
-- **主视觉**：elevator mirror reflection, female journalist silhouette, mysterious grey figure behind, cold horror atmosphere, vertical poster, cinematic, 8k
-- **剧名排版**：白色无衬线粗体，居中偏下，带轻微故障(glitch)效果
+- **主视觉 Prompt**：elevator mirror reflection, female journalist silhouette in dark grey trench coat, mysterious tall grey figure standing behind, face hidden in shadow, cold horror atmosphere, vertical poster, cinematic, 8k, film grain
+- **剧名排版建议**：白色无衬线粗体（如Helvetica Bold），居中偏下，带轻微故障(glitch)效果，字号占画面宽度60%
+- **系列海报方案**：统一冷蓝主调，每张以不同场景的"异常瞬间"为主视觉，底部统一排版剧名
 
-### 5. 风格参考
-- 参考《咒怨》的密闭空间镜面恐怖
-- 参考《信条》的冷调反转质感
-- 参考画师 Zdzisław Beksiński 的压抑氛围光影`,
+### 5. 风格参考图集
+- **参考作品 1**：《咒怨》 — 参考其密闭空间镜面恐怖和日常环境中的超自然元素
+- **参考作品 2**：《信条》 — 参考其冷调色彩和反转叙事的视觉质感
+- **参考艺术家/画师**：Zdzisław Beksiński — 参考其压抑氛围光影和超现实恐怖美学`,
   },
   mediaItems: [],
   snapshots: [],
