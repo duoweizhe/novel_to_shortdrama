@@ -455,7 +455,7 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }
 // ============ Characters View (4视图合一单图) ============
 function CharactersView({ characters, onUpdate }) {
   if (!characters.length) return <Empty tip="生成角色设定后将显示，每角色含一张4视图设定图Prompt" />;
-  const baseFields = [['role','叙事功能'],['gender','性别'],['age','年龄'],['appearance','外貌'],['personality','性格'],['costume','服装道具'],['arc','角色弧光']];
+  const baseFields = [['role','叙事功能'],['gender','性别'],['age','年龄'],['appearance','外貌'],['personality','性格'],['costume','服装道具'],['voiceStyle','语言风格'],['relationships','人物关系'],['arc','角色弧光'],['castingReference','选角参考']];
   const updateField = (i, k, v) => { const c = [...characters]; c[i] = { ...c[i], [k]: v }; onUpdate(c); };
   return (
     <div className="grid-cards">
@@ -483,7 +483,7 @@ function CharactersView({ characters, onUpdate }) {
 // ============ Scenes View ============
 function ScenesView({ scenes, onUpdate }) {
   if (!scenes.length) return <Empty tip="生成场景设定后将显示在此" />;
-  const fields = [['environment','环境'],['mood','氛围'],['lighting','光照'],['timeOfDay','时间段'],['narrativeFunction','叙事功能'],['keyProps','关键道具'],['imagePromptZh','场景图Prompt(中)'],['imagePromptEn','场景图Prompt(英)']];
+  const fields = [['environment','环境'],['mood','氛围'],['lighting','光照'],['timeOfDay','时间段'],['narrativeFunction','叙事功能'],['keyProps','关键道具'],['soundDesign','声音设计'],['colorPalette','色调建议'],['compositionHint','构图建议'],['imagePromptZh','场景图Prompt(中)'],['imagePromptEn','场景图Prompt(英)']];
   const updateField = (i, k, v) => { const s = [...scenes]; s[i] = { ...s[i], [k]: v }; onUpdate(s); };
   return (
     <div className="grid-cards">
@@ -527,7 +527,7 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
       </div>
       {view === 'table' ? (
         <table className="shots"><thead><tr>
-          <th className="num">集</th><th className="num">场</th><th className="num">镜</th><th>景别</th><th>画面</th><th>对白</th><th>动作</th><th className="num">秒</th><th>角色</th><th>场景</th><th className="prompt-cell">Prompt(中)</th><th className="prompt-cell">Prompt(英)</th><th></th>
+          <th className="num">集</th><th className="num">场</th><th className="num">镜</th><th>景别</th><th>画面</th><th>对白</th><th>动作</th><th>声音</th><th>转场</th><th className="num">秒</th><th>角色</th><th>场景</th><th className="prompt-cell">Prompt(中)</th><th className="prompt-cell">Prompt(英)</th><th></th>
         </tr></thead><tbody>
           {filtered.map((s, idx) => (
             <tr key={idx}>
@@ -536,6 +536,8 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
               <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'visual', e.target.textContent)}>{s.visual}</div></td>
               <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'dialogue', e.target.textContent)}>{s.dialogue}</div></td>
               <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'action', e.target.textContent)}>{s.action}</div></td>
+              <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'soundDesign', e.target.textContent)}>{s.soundDesign}</div></td>
+              <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'transition', e.target.textContent)}>{s.transition}</div></td>
               <td className="num"><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'duration', parseInt(e.target.textContent) || 0)}>{s.duration}</div></td>
               <td>{charName(s.characterNames)}</td><td>{s.sceneName}</td>
               <td className="prompt-cell"><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'promptZh', e.target.textContent)}>{s.promptZh}</div></td>
@@ -556,6 +558,8 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
               <div className="tile-head"><span>第{s.episode}集·{s.sceneNo}场·{s.shotNo}镜</span><span className="badge">{s.shotType} {s.duration}s</span></div>
               <div className="tile-visual">{s.visual}</div>
               {s.dialogue && <div style={{ fontSize: 12, color: 'var(--ai-text-muted)' }}>「{s.dialogue}」</div>}
+              {s.soundDesign && <div style={{ fontSize: 11, color: 'var(--ai-text-muted)' }}>🔊 {s.soundDesign}</div>}
+              {s.transition && <div style={{ fontSize: 11, color: 'var(--ai-text-muted)' }}>→ {s.transition}</div>}
               <div className="tile-prompt"><b>中</b>：{s.promptZh}<br /><b>EN</b>：{s.promptEn}</div>
               <div className="tile-actions">
                 <Button size="small" onClick={() => { navigator.clipboard?.writeText(s.promptEn); toast('已复制EN', 'ok'); }}>复制EN</Button>

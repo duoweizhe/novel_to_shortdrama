@@ -858,7 +858,7 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }
 }
 function CharactersView({ characters, onUpdate }) {
   if (!characters.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u89D2\u8272\u8BBE\u5B9A\u540E\u5C06\u663E\u793A\uFF0C\u6BCF\u89D2\u8272\u542B\u4E00\u5F204\u89C6\u56FE\u8BBE\u5B9A\u56FEPrompt" });
-  const baseFields = [["role", "\u53D9\u4E8B\u529F\u80FD"], ["gender", "\u6027\u522B"], ["age", "\u5E74\u9F84"], ["appearance", "\u5916\u8C8C"], ["personality", "\u6027\u683C"], ["costume", "\u670D\u88C5\u9053\u5177"], ["arc", "\u89D2\u8272\u5F27\u5149"]];
+  const baseFields = [["role", "\u53D9\u4E8B\u529F\u80FD"], ["gender", "\u6027\u522B"], ["age", "\u5E74\u9F84"], ["appearance", "\u5916\u8C8C"], ["personality", "\u6027\u683C"], ["costume", "\u670D\u88C5\u9053\u5177"], ["voiceStyle", "\u8BED\u8A00\u98CE\u683C"], ["relationships", "\u4EBA\u7269\u5173\u7CFB"], ["arc", "\u89D2\u8272\u5F27\u5149"], ["castingReference", "\u9009\u89D2\u53C2\u8003"]];
   const updateField = (i, k, v) => {
     const c = [...characters];
     c[i] = { ...c[i], [k]: v };
@@ -891,7 +891,7 @@ function CharactersView({ characters, onUpdate }) {
 }
 function ScenesView({ scenes, onUpdate }) {
   if (!scenes.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u573A\u666F\u8BBE\u5B9A\u540E\u5C06\u663E\u793A\u5728\u6B64" });
-  const fields = [["environment", "\u73AF\u5883"], ["mood", "\u6C1B\u56F4"], ["lighting", "\u5149\u7167"], ["timeOfDay", "\u65F6\u95F4\u6BB5"], ["narrativeFunction", "\u53D9\u4E8B\u529F\u80FD"], ["keyProps", "\u5173\u952E\u9053\u5177"], ["imagePromptZh", "\u573A\u666F\u56FEPrompt(\u4E2D)"], ["imagePromptEn", "\u573A\u666F\u56FEPrompt(\u82F1)"]];
+  const fields = [["environment", "\u73AF\u5883"], ["mood", "\u6C1B\u56F4"], ["lighting", "\u5149\u7167"], ["timeOfDay", "\u65F6\u95F4\u6BB5"], ["narrativeFunction", "\u53D9\u4E8B\u529F\u80FD"], ["keyProps", "\u5173\u952E\u9053\u5177"], ["soundDesign", "\u58F0\u97F3\u8BBE\u8BA1"], ["colorPalette", "\u8272\u8C03\u5EFA\u8BAE"], ["compositionHint", "\u6784\u56FE\u5EFA\u8BAE"], ["imagePromptZh", "\u573A\u666F\u56FEPrompt(\u4E2D)"], ["imagePromptEn", "\u573A\u666F\u56FEPrompt(\u82F1)"]];
   const updateField = (i, k, v) => {
     const s = [...scenes];
     s[i] = { ...s[i], [k]: v };
@@ -963,6 +963,8 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
         /* @__PURE__ */ jsx("th", { children: "\u753B\u9762" }),
         /* @__PURE__ */ jsx("th", { children: "\u5BF9\u767D" }),
         /* @__PURE__ */ jsx("th", { children: "\u52A8\u4F5C" }),
+        /* @__PURE__ */ jsx("th", { children: "\u58F0\u97F3" }),
+        /* @__PURE__ */ jsx("th", { children: "\u8F6C\u573A" }),
         /* @__PURE__ */ jsx("th", { className: "num", children: "\u79D2" }),
         /* @__PURE__ */ jsx("th", { children: "\u89D2\u8272" }),
         /* @__PURE__ */ jsx("th", { children: "\u573A\u666F" }),
@@ -978,6 +980,8 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
         /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "visual", e.target.textContent), children: s.visual }) }),
         /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "dialogue", e.target.textContent), children: s.dialogue }) }),
         /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "action", e.target.textContent), children: s.action }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "soundDesign", e.target.textContent), children: s.soundDesign }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "transition", e.target.textContent), children: s.transition }) }),
         /* @__PURE__ */ jsx("td", { className: "num", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "duration", parseInt(e.target.textContent) || 0), children: s.duration }) }),
         /* @__PURE__ */ jsx("td", { children: charName(s.characterNames) }),
         /* @__PURE__ */ jsx("td", { children: s.sceneName }),
@@ -1016,6 +1020,14 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
         "\u300C",
         s.dialogue,
         "\u300D"
+      ] }),
+      s.soundDesign && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+        "\u{1F50A} ",
+        s.soundDesign
+      ] }),
+      s.transition && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+        "\u2192 ",
+        s.transition
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "tile-prompt", children: [
         /* @__PURE__ */ jsx("b", { children: "\u4E2D" }),
