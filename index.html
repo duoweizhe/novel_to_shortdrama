@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>短剧脚本工坊 · ShortDrama Studio</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">SD</span>
+      <h1>短剧脚本工坊</h1>
+      <small>ShortDrama Studio · 小说/剧本 → AI 视频分镜</small>
+    </div>
+    <div class="project-bar" id="projectBar"></div>
+  </header>
+
+  <main class="layout">
+    <!-- 左侧：源文本 + 配置 -->
+    <section class="panel left">
+      <div class="card">
+        <div class="card-head">
+          <h2>源文本</h2>
+          <div class="card-actions">
+            <label class="btn ghost small">
+              导入文件
+              <input type="file" id="fileInput" accept=".txt,.md" hidden />
+            </label>
+            <button class="btn ghost small" id="loadExampleBtn">加载示例</button>
+          </div>
+        </div>
+        <textarea id="sourceText" placeholder="在此粘贴小说、故事或剧本文本…&#10;支持任意长度，过长将自动分批生成。" spellcheck="false"></textarea>
+        <div class="meta"><span id="charCount">0</span> 字</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>LLM 配置</h2>
+          <button class="btn ghost small" id="testConnBtn">测试连接</button>
+        </div>
+        <div class="form-grid">
+          <label>API Key
+            <input type="password" id="apiKey" placeholder="sk-..." autocomplete="off" />
+          </label>
+          <label>Base URL
+            <input type="text" id="baseUrl" placeholder="https://api.openai.com" />
+          </label>
+          <label>模型
+            <input type="text" id="model" placeholder="gpt-4o-mini" />
+          </label>
+          <label class="hint" id="keyHint">未配置</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>短剧参数</h2></div>
+        <div class="form-grid params">
+          <label>总集数
+            <input type="number" id="episodes" min="1" value="1" />
+          </label>
+          <label>每集时长(秒)
+            <input type="number" id="durationPerEp" min="10" value="60" />
+          </label>
+          <label>视频风格
+            <input type="text" id="style" value="电影感·冷调悬疑" />
+          </label>
+          <label>画幅比例
+            <select id="aspectRatio">
+              <option value="16:9">16:9 横屏</option>
+              <option value="9:16">9:16 竖屏</option>
+              <option value="1:1">1:1 方形</option>
+            </select>
+          </label>
+          <label>单批分镜上限
+            <input type="number" id="batchSize" min="2" max="20" value="8" />
+          </label>
+        </div>
+        <div class="gen-actions">
+          <button class="btn primary" id="genSettingsBtn">① 生成设定</button>
+          <button class="btn primary" id="genShotsBtn">② 生成分镜</button>
+        </div>
+        <div class="status" id="status"></div>
+      </div>
+    </section>
+
+    <!-- 右侧：结果 -->
+    <section class="panel right">
+      <nav class="tabs">
+        <button class="tab active" data-view="characters">角色设定</button>
+        <button class="tab" data-view="scenes">场景设定</button>
+        <button class="tab" data-view="shots">分镜脚本</button>
+        <div class="tabs-right">
+          <button class="btn ghost small" id="exportMdBtn">导出 Markdown</button>
+          <button class="btn ghost small" id="exportJsonBtn">导出 JSON</button>
+        </div>
+      </nav>
+      <div class="content" id="content"></div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

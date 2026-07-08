@@ -1,214 +1,154 @@
-# 短剧脚本工坊 (ShortDrama Studio)
+# 整合优化设计文档 — 短剧脚本工坊 v3.0
 
 Feature Name: novel-to-shortdrama-script
 Updated: 2026-07-08
 
-## 描述
+## 背景
 
-一个纯前端单页应用，将小说 / 故事 / 剧本文本转化为可用于 AI 视频生成的短剧分镜脚本与设定文档。用户在前端配置自有 LLM API Key，系统调用兼容 OpenAI 格式的模型，自动提取角色与场景设定，并生成含中英文 AI 视频提示词的分镜脚本。产出可页面内编辑并导出为 Markdown / JSON。
+基于两个半成品附件（zip1 v2.1.1、zip2 v2.0.0）的优点，整合优化当前纯前端项目，升级为 Node+Express+React 全栈架构，UI 采用 animal-island-ui 组件库。
+
+## 吸收的优点
+
+| 来源 | 优点 | 整合方式 |
+|------|------|---------|
+| zip1 | 10 种视觉风格系统（promptSuffix + negativePrompt） | 移植到后端 STYLES，注入所有生图/视频 Prompt |
+| zip1 | 8 个分析模块（结构/制作/角色/场景/分镜/脚本/资产/漫画） | 移植 PROMPTS，支持单独/批量流式生成 |
+| zip1 | 知识库（角色/场景/道具提取+合并+去重） | 章节分析前自动提取，跨章节保持一致性 |
+| zip1 | 章节管理（正则分章、分组、逐章分析） | 移植章节导入与树形管理 |
+| zip1 | 预处理引擎（分段摘要+全局综合） | 长文本先预处理再分析 |
+| zip1 | 一致性检查 | 全模块生成后 QA |
+| zip1 | AI 生图/生视频（Agnes/DALL-E） | 移植媒体生成 API |
+| zip1 | 流式 SSE + 重试退避 | 所有 LLM 调用走 SSE |
+| zip1 | 版本快照 | 移植快照保存/恢复 |
+| zip2 | 预设 Provider 列表 | 配置页提供 deepseek/qwen/openai/mimo 预设 |
+| zip2 | Prompt 覆盖配置 | 高级设置可自定义各模块 Prompt |
+| 当前项目 | 结构化分镜（Shot 含 episode/sceneNo/shotNo/中英文prompt） | 分镜模块输出结构化 JSON 而非纯 Markdown |
+| 当前项目 | 批量分块+id 重映射 | 长文本分镜自动分块合并 |
+| 当前项目 | 悬疑示例数据 | 内置示例项目 |
 
 ## 架构
 
-采用零构建工具的纯前端架构，所有逻辑运行在浏览器中，便于静态托管与本地预览。
-
 ```mermaid
-flowchart LR
-    A["源文本输入"] --> B["LLM 编排层"]
-    B --> C["设定提取 Prompt"]
-    B --> D["分镜生成 Prompt"]
-    C --> E["角色设定卡"]
-    C --> F["场景设定卡"]
-    D --> E
-    D --> F
-    D --> G["分镜序列"]
-    E --> H["localStorage 持久化"]
-    F --> H
-    G --> H
-    H --> I["视图渲染层"]
-    I --> J["Markdown 导出"]
-    I --> K["JSON 导出"]
+flowchart TB
+    subgraph Browser["浏览器 (React + animal-island-ui)"]
+        UI["前端 SPA"]
+    end
+    subgraph Server["Express 后端 (单端口)"]
+        API["REST API"]
+        SSE["SSE 流式分析"]
+        FS["文件存储 data/"]
+    end
+    subgraph External["外部服务"]
+        LLM["LLM Provider<br/>OpenAI兼容"]
+        IMG["图像生成<br/>Agnes/DALL-E"]
+        VID["视频生成<br/>Agnes"]
+    end
+    UI -->|HTTP/SSE| API
+    API --> FS
+    API -->|fetch| LLM
+    API -->|fetch| IMG
+    API -->|fetch| VID
+    SSE -->|stream| LLM
 ```
 
 ### 文件结构
 
 ```
 /
-├── index.html              # 单页应用入口
-├── css/
-│   └── styles.css          # 全局样式
-├── js/
-│   ├── app.js              # 入口、事件绑定、视图切换
-│   ├── store.js            # 状态管理与 localStorage 持久化
-│   ├── llm.js              # LLM 调用与 Prompt 模板
-│   ├── render.js           # 视图渲染(角色/场景/分镜)
-│   ├── export.js           # Markdown / JSON 导出
-│   └── example.js          # 内置示例项目数据
-└── .monkeycode/
-    └── specs/novel-to-shortdrama-script/
-        ├── requirements.md
-        └── design.md
+├── server.js                # Express 后端（API + 静态服务）
+├── package.json
+├── public/
+│   ├── index.html           # React 入口（CDN + Babel）
+│   ├── css/
+│   │   └── app.css          # animal-island-ui token + 自定义样式
+│   └── js/
+│       ├── app.jsx          # React 根组件
+│       ├── api.js           # 前端 API 封装
+│       ├── components/
+│       │   ├── Sidebar.jsx
+│       │   ├── InputPanel.jsx
+│       │   ├── ResultPanel.jsx
+│       │   ├── Settings.jsx
+│       │   ├── KnowledgeBase.jsx
+│       │   ├── MediaGen.jsx
+│       │   └── ShotTable.jsx
+│       └── example.js       # 示例数据
+└── .monkeycode/specs/novel-to-shortdrama-script/
+    ├── requirements.md
+    └── design.md
 ```
 
-## 组件与接口
+## 后端设计
 
-### store.js — 状态管理
+### 视觉风格（STYLES）
 
-```js
-// 项目状态结构
-const state = {
-  projects: Project[],     // 所有项目
-  currentId: string,       // 当前项目 id
-  view: 'characters' | 'scenes' | 'shots',
-  generating: boolean,
-  error: string | null
-}
+10 种风格，每种含 `promptSuffix`（英文风格描述）和 `negativePrompt`（排除项），自动追加到所有生图/视频 Prompt。
 
-// 主要接口
-loadProject(id)            // 加载指定项目
-saveProject()              // 持久化当前项目到 localStorage
-createProject(name)        // 新建项目
-deleteProject(id)
-updateField(path, value)   // 通用字段更新(支持编辑)
-```
+### 分析模块（ANALYSIS_MODULES）
 
-### llm.js — LLM 编排
+| 模块 | 输出格式 |
+|------|---------|
+| structure | Markdown 剧情结构分析 |
+| summary | Markdown 制作分析 |
+| characters | 结构化 JSON 角色设定卡（含中英文 imagePrompt） |
+| scenes | 结构化 JSON 场景设定卡（含中英文 imagePrompt） |
+| storyboard | 结构化 JSON 分镜（含中英文 videoPrompt） |
+| script | Markdown 短剧脚本 |
+| assets | Markdown 视觉资产 |
+| manga | Markdown 漫画脚本 |
 
-```js
-callLLM(messages, opts)           // 通用 OpenAI 兼容请求，返回文本
-testConnection(config)            // 发送最小请求验证配置
-generateSettings(sourceText)      // 返回 { characters, scenes }
-generateShots(sourceText, settings, params)  // 分批返回 Shot[]
+characters/scenes/storyboard 三个模块输出结构化 JSON（沿用当前项目数据模型），其余输出 Markdown。
 
-// 内部 Prompt 模板
-SETTINGS_PROMPT(sourceText)
-SHOTS_PROMPT(chunk, characters, scenes, params)
-```
+### LLM 调用
 
-- 使用 `fetch` 调用 `{baseUrl}/v1/chat/completions`
-- 请求头携带 `Authorization: Bearer {apiKey}`
-- 通过指令约束 LLM 仅返回 JSON，并在解析失败时尝试 `JSON.parse` 容错提取
-- 超时控制：单请求 90s，使用 `AbortController`
+- 统一 `callLLM(systemPrompt, userContent, stream)` 兼容 OpenAI 格式
+- 流式 SSE：逐 token 推送到前端
+- `withRetry`：指数退避，最多 3 次
+- 风格上下文自动注入：`getStyleContext(styleKey)` 追加到 user content
 
-### render.js — 视图渲染
+### API 路由
 
-```js
-renderConfig()             // 渲染配置面板
-renderCharacters()         // 渲染角色卡网格(可编辑)
-renderScenes()             // 渲染场景卡网格(可编辑)
-renderShots()              // 渲染分镜(表格/网格切换)
-renderProjectBar()         // 项目切换栏
-```
+- `GET/POST/PUT/DELETE /api/projects` — 项目 CRUD
+- `POST /api/projects/:id/chapters/import` — 按正则分章导入
+- `GET/PUT/PATCH /api/projects/:id/knowledge` — 知识库
+- `POST /api/analyze` — 单模块流式分析（SSE）
+- `POST /api/analyze-all` — 批量模块流式分析（SSE）
+- `POST /api/preprocess` — 预处理（SSE）
+- `POST /api/check-consistency` — 一致性检查（SSE）
+- `POST /api/generate/image` — AI 生图
+- `POST /api/generate/video` — AI 生视频
+- `GET/PUT /api/config/llm` — Provider 配置
+- `POST /api/config/llm/test` — 测试连接
+- `GET /api/styles` — 视觉风格列表
+- `GET /api/projects/:id/export-md` — 导出 Markdown
 
-- 所有可编辑字段使用 `contenteditable` 或内联 `input`，失焦即保存
-- 分镜表格支持按集号 / 场景筛选下拉框
+## 前端设计
 
-### export.js — 导出
+### 技术栈
+- React 18（CDN production build）
+- Babel Standalone（JSX 转译）
+- animal-island-ui 组件库（Button/Input/Modal/Card/Switch/Form/Icon）
+- marked.js（Markdown 渲染）+ highlight.js（代码高亮）
 
-```js
-exportMarkdown(project)    // 生成 Markdown 字符串并触发下载
-exportJSON(project)        // 生成 JSON 并触发下载
-copyToClipboard(text)      // 复制单条 prompt
-```
+### 布局
+- 顶栏：Logo + 模型状态 + 设置按钮
+- 左侧栏：项目列表 + 新建/导入
+- 中间输入面板：源文本/章节管理 + 预处理 + 风格选择 + 分析按钮
+- 右侧结果面板：Tab 切换 8 模块 + 知识库 + 一致性 + 媒体生成
 
-## 数据模型
-
-```ts
-interface Project {
-  id: string
-  name: string
-  sourceText: string
-  createdAt: string
-  updatedAt: string
-  config: Config
-  characters: Character[]
-  scenes: Scene[]
-  shots: Shot[]
-}
-
-interface Config {
-  apiKey: string
-  baseUrl: string
-  model: string
-  episodes: number        // 总集数
-  durationPerEp: number   // 每集时长(秒)
-  style: string           // 视频风格，如"电影感/古风/赛博朋克"
-  aspectRatio: string     // 16:9 | 9:16 | 1:1
-  batchSize: number       // 单次请求分镜上限
-}
-
-interface Character {
-  id: string
-  name: string
-  gender: string
-  age: string
-  appearance: string
-  personality: string
-  costume: string
-  imagePromptZh: string
-  imagePromptEn: string
-}
-
-interface Scene {
-  id: string
-  name: string
-  environment: string
-  mood: string
-  lighting: string
-  timeOfDay: string
-  imagePromptZh: string
-  imagePromptEn: string
-}
-
-interface Shot {
-  id: string
-  episode: number
-  sceneNo: number
-  shotNo: number
-  shotType: string        // 景别: 远/全/中/近/特写
-  visual: string          // 画面描述
-  dialogue: string
-  action: string
-  duration: number        // 秒
-  characterIds: string[]
-  sceneId: string
-  promptZh: string
-  promptEn: string
-}
-```
+### 凭据处理
+- 用户在前端设置页配置自有 API Key
+- Key 存储在后端 `data/config.json`（服务端文件），前端仅显示脱敏
+- 不读取执行环境中的 LLM API Key
 
 ## 正确性属性
+- 章节分析前自动提取知识库，后续模块注入知识库上下文保持一致性
+- characters/scenes/storyboard 输出 JSON 经容错解析，失败时提示重试
+- 分镜 characterNames/sceneName 映射到知识库 id
+- 快照最多 20 个，恢复前自动保存当前状态
 
-- 分镜 `characterIds` 中的每个 id 必须存在于 `characters` 数组中
-- 分镜 `sceneId` 必须存在于 `scenes` 数组中
-- 同一(集号, 场号)下的镜号 `shotNo` 唯一且递增
-- `duration` 为正数，单集所有分镜时长之和不超过 `durationPerEp` 的 110%(允许小幅溢出)
-- `episodes`、`durationPerEp`、`batchSize` 均为正整数
-
-## 错误处理
-
-| 场景 | 处理策略 |
-|------|---------|
-| API Key 为空 | 禁用生成按钮，配置区显示提示 |
-| 连接失败 / 网络错误 | 在生成按钮附近显示错误信息，允许重试 |
-| LLM 返回非 JSON | 尝试用正则提取 `{...}` / `[...]` 段并解析；失败则记录原始返回并提示"模型输出格式异常，请重试" |
-| 请求超时(90s) | 中止请求，提示超时并建议减小 `batchSize` 或缩短源文本 |
-| localStorage 配额满 | 捕获 `QuotaExceededError`，提示用户清理旧项目 |
-| 分批生成部分失败 | 已成功的批次保留，失败批次标记为待重试，不影响已生成内容 |
-
-## 测试策略
-
-- **手动测试**：覆盖主要流程(配置→生成设定→生成分镜→编辑→导出)
-- **单元测试**(可选，通过浏览器控制台运行)：
-  - `exportMarkdown` 输出格式校验
-  - 数据模型校验函数(关联 id 一致性、镜号唯一性)
-  - JSON 容错解析
-- **LLM 调用**：通过 mock fetch 测试 Prompt 组装与分批合并逻辑
-- **示例数据**：内置示例作为回归基准，验证渲染与导出
-
-## 关键设计决策
-
-1. **纯前端无后端**：部署简单，适配单端口预览环境；用户自带 Key，符合凭据隔离原则
-2. **localStorage 持久化**：免登录、免数据库，满足单用户本地工具需求
-3. **分批生成**：长文本按段落切分，单批不超过 `batchSize`，避免单次输出过长导致截断
-4. **设定注入分镜 Prompt**：生成分镜时将角色外貌与场景环境描述注入上下文，保证画面一致性
-5. **中英文双 prompt**：满足国内(可灵)与海外(Sora/Runway)模型使用场景
+## 关键决策
+1. **Node+Express 单端口**：API 与静态文件同端口，适配预览环境
+2. **React CDN + animal-island-ui**：免构建工具，animal-island-ui 通过 npm 安装后以 ESM 引入
+3. **结构化 + Markdown 混合输出**：角色/场景/分镜用 JSON（可编辑），其余用 Markdown（可读）
+4. **服务端存储 Key**：比 localStorage 更安全，支持多 Provider 切换

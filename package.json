@@ -1,0 +1,26 @@
+{
+  "name": "novel-to-drama-studio",
+  "version": "3.0.0",
+  "description": "短剧脚本工坊 — 小说/剧本/故事 → AI 视频分镜脚本与设定",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "novel",
+    "drama",
+    "ai",
+    "screenplay",
+    "storyboard",
+    "shortdrama"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "animal-island-ui": "^1.2.0",
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
