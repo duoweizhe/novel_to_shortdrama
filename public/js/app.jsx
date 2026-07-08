@@ -378,9 +378,8 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
 }
 
 // ============ Result Panel ============
-function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }) {
+function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, streaming, streamingType, setStreaming, setStreamingType }) {
   const [tab, setTab] = useS('characters');
-  const [streaming, setStreaming] = useS('');
   const [generating, setGenerating] = useS(false);
   const [progress, setProgress] = useS('');
   const [progressPct, setProgressPct] = useS(0);
@@ -394,12 +393,13 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }
   const analyzeOne = async (type) => {
     if (!project?.content?.trim() && !project?.chapters?.length) { toast('请先输入内容或章节', 'error'); return; }
     const content = analysisSource;
-    setGenerating(true); setStreaming(''); setProgress(`正在生成${MODULES.find(m => m.id === type)?.name}，请稍候...`); setProgressPct(30);
+    setGenerating(true); setStreaming(''); setStreamingType(''); setProgress(`正在生成${MODULES.find(m => m.id === type)?.name}，请稍候...`); setProgressPct(30);
     const ac = new AbortController(); abortRef.current = ac;
     try {
       await api.analyze({ type, content, visualStyle: project.style, projectId: project.id, characters, scenes }, (d) => {
         if (d.status === 'start') setProgressPct(40);
-        if (d.status === 'done') { onUpdate({ results: { ...results, [type]: d.result } }); setProgress(`${MODULES.find(m => m.id === type)?.name} 完成`); setProgressPct(100); toast('生成完成', 'ok'); setTimeout(() => { setProgress(''); setProgressPct(0); }, 1500); }
+        if (d.status === 'streaming') { setStreamingType(d.type); setStreaming(prev => prev + d.content); setProgressPct(prev => prev < 50 ? 50 : prev); }
+        if (d.status === 'done') { onUpdate({ results: { ...results, [type]: d.result } }); setStreaming(''); setStreamingType(''); setProgress(`${MODULES.find(m => m.id === type)?.name} 完成`); setProgressPct(100); toast('生成完成', 'ok'); setTimeout(() => { setProgress(''); setProgressPct(0); }, 1500); }
         if (d.status === 'error') { setProgress('错误: ' + d.error); toast('生成失败', 'error'); }
       }, ac.signal);
     } catch (e) { if (e.name !== 'AbortError') { setProgress('失败: ' + e.message); toast('生成失败', 'error'); } }
@@ -443,7 +443,7 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }
         {tab === 'characters' && <CharactersView characters={characters} onUpdate={(chars) => onUpdate({ results: { ...results, characters: { characters: chars } } })} />}
         {tab === 'scenes' && <ScenesView scenes={scenes} onUpdate={(sc) => onUpdate({ results: { ...results, scenes: { scenes: sc } } })} />}
         {tab === 'storyboard' && <ShotView shots={shots} characters={characters} scenes={scenes} onUpdate={(sh) => onUpdate({ results: { ...results, storyboard: { shots: sh } } })} />}
-        {MODULES.filter(m => m.type === 'md').map(m => tab === m.id && <MdView key={m.id} content={results[m.id]} emptyTip={`点击右上方"生成"开始`} />)}
+        {MODULES.filter(m => m.type === 'md').map(m => tab === m.id && <MdView key={m.id} content={streamingType === m.id ? streaming : results[m.id]} emptyTip={`点击右上方"生成"开始`} />)}
         {tab === 'knowledge' && <KnowledgeView project={project} onUpdate={onUpdate} />}
         {tab === 'media' && <MediaGen styles={styles} project={project} characters={characters} scenes={scenes} />}
         {tab === 'consistency' && <ConsistencyView project={project} />}
@@ -682,6 +682,8 @@ function App() {
   const [collapsed, setCollapsed] = useS(false);
   const [cfg, setCfg] = useS(null);
   const [analysisSource, setAnalysisSource] = useS({ mode: 'chapters', chId: '' });
+  const [streaming, setStreaming] = useS('');
+  const [streamingType, setStreamingType] = useS('');
 
   const refreshProjects = useCB(async () => { try { const r = await api.listProjects(); setProjects(r.items || []); } catch {} }, []);
 
@@ -746,7 +748,7 @@ function App() {
             <InputPanel project={project} onUpdate={updateProject} styles={styles} generating={false} hasChapters={hasChapters}
               analysisSource={analysisSource} setAnalysisSource={setAnalysisSource}
               onAnalyzeAll={(mods) => window.__analyzeAllImpl?.(mods)} />
-            <ResultPanel project={project} onUpdate={updateProject} styles={styles} onAnalyzeAll={(mods) => window.__analyzeAllImpl?.(mods)} analysisSource={analysisContent} />
+            <ResultPanel project={project} onUpdate={updateProject} styles={styles} onAnalyzeAll={(mods) => window.__analyzeAllImpl?.(mods)} analysisSource={analysisContent} streaming={streaming} streamingType={streamingType} setStreaming={setStreaming} setStreamingType={setStreamingType} />
           </div>
         ) : (
           <div className="main-area" style={{ alignItems: 'center', justifyContent: 'center', color: 'var(--ai-text-muted)' }}>
@@ -763,13 +765,13 @@ function App() {
       </div>
       <NewProjectModal open={newOpen} onClose={() => setNewOpen(false)} onCreate={createProject} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onSaved={() => api.getConfig().then(setCfg)} />
-      <ResultPanelAnalyzeBridge project={project} results={project?.results || {}} characters={project?.results?.characters?.characters || []} scenes={project?.results?.scenes?.scenes || []} onUpdate={updateProject} analysisContent={analysisContent} />
+      <ResultPanelAnalyzeBridge project={project} results={project?.results || {}} characters={project?.results?.characters?.characters || []} scenes={project?.results?.scenes?.scenes || []} onUpdate={updateProject} analysisContent={analysisContent} setStreaming={setStreaming} setStreamingType={setStreamingType} />
     </div>
   );
 }
 
 // 把 analyzeAll 桥接到 window，供 InputPanel 调用
-function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate, analysisContent }) {
+function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate, analysisContent, setStreaming, setStreamingType }) {
   useE(() => {
     window.__analyzeAllImpl = async (modules) => {
       if (!project) return;
@@ -778,8 +780,9 @@ function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpda
       toast('开始批量分析', 'info');
       try {
         await api.analyzeAll({ content, visualStyle: project.style, projectId: project.id, modules }, (d) => {
-          if (d.status === 'module_start') toast(`生成 ${MODULES.find(m => m.id === d.type)?.name}...`, 'info');
-          if (d.status === 'module_done') { onUpdate({ results: { ...results, [d.type]: d.result } }); }
+          if (d.status === 'module_start') { toast(`生成 ${MODULES.find(m => m.id === d.type)?.name}...`, 'info'); setStreaming(''); setStreamingType(d.type); }
+          if (d.status === 'module_streaming') { setStreaming(prev => prev + d.content); }
+          if (d.status === 'module_done') { onUpdate({ results: { ...results, [d.type]: d.result } }); setStreaming(''); setStreamingType(''); }
           if (d.status === 'all_done') toast('批量分析完成', 'ok');
         });
       } catch (e) { toast('分析失败: ' + e.message, 'error'); }

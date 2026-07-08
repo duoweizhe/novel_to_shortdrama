@@ -862,16 +862,21 @@ app.post('/api/analyze', async (req, res) => {
     send({ status: 'start', type });
 
     let parsed = null, mdText = '';
-    // 结构化模块（非流式）
+    // 结构化模块（非流式，需整体解析JSON）
     if (type === 'characters' || type === 'scenes' || type === 'storyboard') {
       const promptMap = { characters: CHARACTERS_PROMPT, scenes: SCENES_PROMPT, storyboard: STORYBOARD_PROMPT };
       const raw = await callLLM(promptMap[type], finalContent, false);
       parsed = parseJSON(raw);
       send({ status: 'done', type, result: parsed });
     } else {
-      // Markdown 模块 — 非流式，一次性返回完整结果
+      // Markdown 模块 — 流式传输，实时推送生成内容
       if (!PROMPTS[type]) throw new Error('不支持的分析类型: ' + type);
-      mdText = await callLLM(PROMPTS[type], finalContent, false);
+      const stream = await callLLM(PROMPTS[type], finalContent, true);
+      mdText = '';
+      for await (const delta of streamChunks(stream)) {
+        mdText += delta;
+        send({ status: 'streaming', type, content: delta });
+      }
       send({ status: 'done', type, result: mdText });
     }
 
@@ -937,8 +942,13 @@ app.post('/api/analyze-all', async (req, res) => {
           if (p) { p.results = p.results || {}; p.results[type] = parsed; saveProject(p); }
         } else {
           if (!PROMPTS[type]) { send({ status: 'module_error', type, error: '未知模块' }); continue; }
-          // 非流式，一次性返回完整 Markdown
-          const buf = await callLLM(PROMPTS[type], contentForType, false);
+          // 流式传输，实时推送生成内容
+          const stream = await callLLM(PROMPTS[type], contentForType, true);
+          let buf = '';
+          for await (const delta of streamChunks(stream)) {
+            buf += delta;
+            send({ status: 'module_streaming', type, content: delta });
+          }
           send({ status: 'module_done', type, result: buf });
           if (p) { p.results = p.results || {}; p.results[type] = buf; saveProject(p); }
         }

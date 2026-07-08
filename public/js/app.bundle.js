@@ -769,9 +769,8 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
     ] })
   ] });
 }
-function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }) {
+function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, streaming, streamingType, setStreaming, setStreamingType }) {
   const [tab, setTab] = useS("characters");
-  const [streaming, setStreaming] = useS("");
   const [generating, setGenerating] = useS(false);
   const [progress, setProgress] = useS("");
   const [progressPct, setProgressPct] = useS(0);
@@ -788,6 +787,7 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }
     const content = analysisSource;
     setGenerating(true);
     setStreaming("");
+    setStreamingType("");
     setProgress(`\u6B63\u5728\u751F\u6210${MODULES.find((m) => m.id === type)?.name}\uFF0C\u8BF7\u7A0D\u5019...`);
     setProgressPct(30);
     const ac = new AbortController();
@@ -795,8 +795,15 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }
     try {
       await api.analyze({ type, content, visualStyle: project.style, projectId: project.id, characters, scenes }, (d) => {
         if (d.status === "start") setProgressPct(40);
+        if (d.status === "streaming") {
+          setStreamingType(d.type);
+          setStreaming((prev) => prev + d.content);
+          setProgressPct((prev) => prev < 50 ? 50 : prev);
+        }
         if (d.status === "done") {
           onUpdate({ results: { ...results, [type]: d.result } });
+          setStreaming("");
+          setStreamingType("");
           setProgress(`${MODULES.find((m) => m.id === type)?.name} \u5B8C\u6210`);
           setProgressPct(100);
           toast("\u751F\u6210\u5B8C\u6210", "ok");
@@ -849,7 +856,7 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource }
       tab === "characters" && /* @__PURE__ */ jsx(CharactersView, { characters, onUpdate: (chars) => onUpdate({ results: { ...results, characters: { characters: chars } } }) }),
       tab === "scenes" && /* @__PURE__ */ jsx(ScenesView, { scenes, onUpdate: (sc) => onUpdate({ results: { ...results, scenes: { scenes: sc } } }) }),
       tab === "storyboard" && /* @__PURE__ */ jsx(ShotView, { shots, characters, scenes, onUpdate: (sh) => onUpdate({ results: { ...results, storyboard: { shots: sh } } }) }),
-      MODULES.filter((m) => m.type === "md").map((m) => tab === m.id && /* @__PURE__ */ jsx(MdView, { content: results[m.id], emptyTip: `\u70B9\u51FB\u53F3\u4E0A\u65B9"\u751F\u6210"\u5F00\u59CB` }, m.id)),
+      MODULES.filter((m) => m.type === "md").map((m) => tab === m.id && /* @__PURE__ */ jsx(MdView, { content: streamingType === m.id ? streaming : results[m.id], emptyTip: `\u70B9\u51FB\u53F3\u4E0A\u65B9"\u751F\u6210"\u5F00\u59CB` }, m.id)),
       tab === "knowledge" && /* @__PURE__ */ jsx(KnowledgeView, { project, onUpdate }),
       tab === "media" && /* @__PURE__ */ jsx(MediaGen, { styles, project, characters, scenes }),
       tab === "consistency" && /* @__PURE__ */ jsx(ConsistencyView, { project })
@@ -1201,6 +1208,8 @@ function App() {
   const [collapsed, setCollapsed] = useS(false);
   const [cfg, setCfg] = useS(null);
   const [analysisSource, setAnalysisSource] = useS({ mode: "chapters", chId: "" });
+  const [streaming, setStreaming] = useS("");
+  const [streamingType, setStreamingType] = useS("");
   const refreshProjects = useCB(async () => {
     try {
       const r = await api.listProjects();
@@ -1329,7 +1338,7 @@ ${c.content || ""}`).join("\n\n");
             onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods)
           }
         ),
-        /* @__PURE__ */ jsx(ResultPanel, { project, onUpdate: updateProject, styles, onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods), analysisSource: analysisContent })
+        /* @__PURE__ */ jsx(ResultPanel, { project, onUpdate: updateProject, styles, onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods), analysisSource: analysisContent, streaming, streamingType, setStreaming, setStreamingType })
       ] }) : /* @__PURE__ */ jsx("div", { className: "main-area", style: { alignItems: "center", justifyContent: "center", color: "var(--ai-text-muted)" }, children: /* @__PURE__ */ jsxs("div", { style: { textAlign: "center" }, children: [
         /* @__PURE__ */ jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\u{1F3AC}" }),
         /* @__PURE__ */ jsx("div", { style: { fontSize: 18, fontWeight: 700, color: "var(--ai-text)", marginBottom: 8 }, children: "\u77ED\u5267\u811A\u672C\u5DE5\u574A" }),
@@ -1341,10 +1350,10 @@ ${c.content || ""}`).join("\n\n");
     ] }),
     /* @__PURE__ */ jsx(NewProjectModal, { open: newOpen, onClose: () => setNewOpen(false), onCreate: createProject }),
     /* @__PURE__ */ jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), onSaved: () => api.getConfig().then(setCfg) }),
-    /* @__PURE__ */ jsx(ResultPanelAnalyzeBridge, { project, results: project?.results || {}, characters: project?.results?.characters?.characters || [], scenes: project?.results?.scenes?.scenes || [], onUpdate: updateProject, analysisContent })
+    /* @__PURE__ */ jsx(ResultPanelAnalyzeBridge, { project, results: project?.results || {}, characters: project?.results?.characters?.characters || [], scenes: project?.results?.scenes?.scenes || [], onUpdate: updateProject, analysisContent, setStreaming, setStreamingType })
   ] });
 }
-function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate, analysisContent }) {
+function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate, analysisContent, setStreaming, setStreamingType }) {
   useE(() => {
     window.__analyzeAllImpl = async (modules) => {
       if (!project) return;
@@ -1356,9 +1365,18 @@ function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpda
       toast("\u5F00\u59CB\u6279\u91CF\u5206\u6790", "info");
       try {
         await api.analyzeAll({ content, visualStyle: project.style, projectId: project.id, modules }, (d) => {
-          if (d.status === "module_start") toast(`\u751F\u6210 ${MODULES.find((m) => m.id === d.type)?.name}...`, "info");
+          if (d.status === "module_start") {
+            toast(`\u751F\u6210 ${MODULES.find((m) => m.id === d.type)?.name}...`, "info");
+            setStreaming("");
+            setStreamingType(d.type);
+          }
+          if (d.status === "module_streaming") {
+            setStreaming((prev) => prev + d.content);
+          }
           if (d.status === "module_done") {
             onUpdate({ results: { ...results, [d.type]: d.result } });
+            setStreaming("");
+            setStreamingType("");
           }
           if (d.status === "all_done") toast("\u6279\u91CF\u5206\u6790\u5B8C\u6210", "ok");
         });
