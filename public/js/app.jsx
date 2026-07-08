@@ -452,9 +452,9 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, 
   );
 }
 
-// ============ Characters View (4视图合一单图) ============
+// ============ Characters View (4视图横向排列单图) ============
 function CharactersView({ characters, onUpdate }) {
-  if (!characters.length) return <Empty tip="生成角色设定后将显示，每角色含一张4视图设定图Prompt" />;
+  if (!characters.length) return <Empty tip="生成角色设定后将显示，每角色含一张1x4横向排列设定图Prompt" />;
   const baseFields = [['role','叙事功能'],['gender','性别'],['age','年龄'],['appearance','外貌'],['personality','性格'],['costume','服装道具'],['voiceStyle','语言风格'],['relationships','人物关系'],['arc','角色弧光'],['castingReference','选角参考']];
   const updateField = (i, k, v) => { const c = [...characters]; c[i] = { ...c[i], [k]: v }; onUpdate(c); };
   return (
@@ -469,7 +469,7 @@ function CharactersView({ characters, onUpdate }) {
             <div key={k} className="field"><label>{label}</label><input value={c[k] || ''} onChange={e => updateField(i, k, e.target.value)} /></div>
           ))}
           <div className="view-prompts" style={{ borderTop: '1px dashed var(--ai-border)', paddingTop: 8, marginTop: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ai-text)', marginBottom: 6 }}>📐 角色设定图 Prompt（单图含4视图：面部特写/正面/侧面/背面全身）</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ai-text)', marginBottom: 6 }}>📐 角色设定图 Prompt（单图1x4横向排列：面部特写/正面/侧面/背面全身）</div>
             <div className="field"><label>设定图 Prompt（中文）</label><textarea className="prompt" value={c.imagePromptZh || ''} onChange={e => updateField(i, 'imagePromptZh', e.target.value)} style={{ minHeight: 60 }} /></div>
             <div className="field"><label>设定图 Prompt（English）</label><textarea className="prompt" value={c.imagePromptEn || ''} onChange={e => updateField(i, 'imagePromptEn', e.target.value)} style={{ minHeight: 60 }} /></div>
           </div>
@@ -604,7 +604,7 @@ function KnowledgeView({ project, onUpdate }) {
   );
 }
 
-// ============ Media Gen (角色4视图快速生图) ============
+// ============ Media Gen (角色1x4横向排列快速生图) ============
 function MediaGen({ styles, project, characters, scenes }) {
   const [prompt, setPrompt] = useS('');
   const [negPrompt, setNegPrompt] = useS('');
@@ -635,7 +635,7 @@ function MediaGen({ styles, project, characters, scenes }) {
         {err && <div className="status-bar error">{err}</div>}
         {imgUrl && <img className="img-preview" src={imgUrl} alt="生成结果" />}
       </div>
-      <div className="card-title">⚡ 快速填入（点击复制角色4视图/场景Prompt到上方）</div>
+      <div className="card-title">⚡ 快速填入（点击复制角色1x4横向排列/场景Prompt到上方）</div>
       {characters.length === 0 && scenes.length === 0 ? <Empty tip="先生成角色/场景设定" /> : (
         <div className="grid-cards" style={{ marginTop: 10 }}>
           {characters.map((c, i) => (
