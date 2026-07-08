@@ -1,7 +1,7 @@
 // public/js/app.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
-import { Button, Input, Modal, Switch, Tag } from "animal-island-ui";
+import { Button, Input, Modal, Switch, Tag, Select, Card } from "animal-island-ui";
 
 // public/js/api.js
 async function http(url, opts = {}) {
@@ -226,15 +226,25 @@ function NewProjectModal({ open, onClose, onCreate }) {
     }
   }, [open]);
   if (!open) return null;
-  return /* @__PURE__ */ jsxs(
+  const styleOptions = [
+    { key: "cinematic", label: "\u7535\u5F71\u5199\u5B9E" },
+    { key: "anime", label: "\u65E5\u6F2B\u98CE" },
+    { key: "dongman", label: "\u56FD\u6F2B\u98CE" },
+    { key: "3d", label: "3D\u52A8\u753B" },
+    { key: "realistic", label: "\u4EFF\u771F\u4EBA" },
+    { key: "cyberpunk", label: "\u8D5B\u535A\u670B\u514B" },
+    { key: "fantasy", label: "\u5947\u5E7B\u98CE" },
+    { key: "ink", label: "\u6C34\u58A8\u98CE" }
+  ];
+  return /* @__PURE__ */ jsx(
     Modal,
     {
       open,
       title: "\u{1F3AC} \u65B0\u5EFA\u9879\u76EE",
-      typewriter: false,
       onClose,
       okText: "\u521B\u5EFA",
       cancelText: "\u53D6\u6D88",
+      typewriter: false,
       onOk: () => {
         if (!name.trim()) {
           toast("\u8BF7\u8F93\u5165\u9879\u76EE\u540D", "error");
@@ -242,25 +252,16 @@ function NewProjectModal({ open, onClose, onCreate }) {
         }
         onCreate(name.trim(), style);
       },
-      children: [
+      children: /* @__PURE__ */ jsxs("div", { className: "modal-content", children: [
         /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
           /* @__PURE__ */ jsx("label", { children: "\u9879\u76EE\u540D\u79F0" }),
-          /* @__PURE__ */ jsx(Input, { value: name, onChange: (e) => setName(e.target.value), placeholder: "\u5982\uFF1A\u6700\u540E\u4E00\u73ED\u7535\u68AF", allowClear: true })
+          /* @__PURE__ */ jsx(Input, { value: name, onChange: (e) => setName(e.target.value), placeholder: "\u5982\uFF1A\u6700\u540E\u4E00\u73ED\u7535\u68AF", allowClear: true, size: "large" })
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
           /* @__PURE__ */ jsx("label", { children: "\u9ED8\u8BA4\u89C6\u89C9\u98CE\u683C" }),
-          /* @__PURE__ */ jsxs("select", { value: style, onChange: (e) => setStyle(e.target.value), style: { width: "100%", padding: "7px 10px", border: "2px solid var(--ai-border)", borderRadius: 8, background: "var(--ai-bg-content)", fontSize: 13 }, children: [
-            /* @__PURE__ */ jsx("option", { value: "cinematic", children: "\u7535\u5F71\u5199\u5B9E" }),
-            /* @__PURE__ */ jsx("option", { value: "anime", children: "\u65E5\u6F2B\u98CE" }),
-            /* @__PURE__ */ jsx("option", { value: "dongman", children: "\u56FD\u6F2B\u98CE" }),
-            /* @__PURE__ */ jsx("option", { value: "3d", children: "3D\u52A8\u753B" }),
-            /* @__PURE__ */ jsx("option", { value: "realistic", children: "\u4EFF\u771F\u4EBA" }),
-            /* @__PURE__ */ jsx("option", { value: "cyberpunk", children: "\u8D5B\u535A\u670B\u514B" }),
-            /* @__PURE__ */ jsx("option", { value: "fantasy", children: "\u5947\u5E7B\u98CE" }),
-            /* @__PURE__ */ jsx("option", { value: "ink", children: "\u6C34\u58A8\u98CE" })
-          ] })
+          /* @__PURE__ */ jsx(Select, { options: styleOptions, value: style, onChange: (val) => setStyle(val) })
         ] })
-      ]
+      ] })
     }
   );
 }
@@ -306,28 +307,28 @@ function SettingsModal({ open, onClose, onSaved }) {
   const renderProvider = (p, isMedia) => /* @__PURE__ */ jsxs("div", { className: `provider-row ${!isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "active" : ""}`, children: [
     /* @__PURE__ */ jsxs("div", { className: "field-mini", children: [
       /* @__PURE__ */ jsx("label", { children: "\u540D\u79F0" }),
-      /* @__PURE__ */ jsx("input", { value: p.name, onChange: (e) => updateProvider(p.id, "name", e.target.value) })
+      /* @__PURE__ */ jsx(Input, { size: "small", value: p.name, onChange: (e) => updateProvider(p.id, "name", e.target.value) })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 2 }, children: [
       /* @__PURE__ */ jsx("label", { children: "Base URL" }),
-      /* @__PURE__ */ jsx("input", { value: p.baseUrl, onChange: (e) => updateProvider(p.id, "baseUrl", e.target.value), placeholder: "https://..." })
+      /* @__PURE__ */ jsx(Input, { size: "small", value: p.baseUrl, onChange: (e) => updateProvider(p.id, "baseUrl", e.target.value), placeholder: "https://..." })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1.5 }, children: [
       /* @__PURE__ */ jsx("label", { children: "API Key" }),
-      /* @__PURE__ */ jsx("input", { type: "password", value: p.apiKey, onChange: (e) => updateProvider(p.id, "apiKey", e.target.value), placeholder: "sk-..." })
+      /* @__PURE__ */ jsx(Input, { size: "small", type: "password", value: p.apiKey, onChange: (e) => updateProvider(p.id, "apiKey", e.target.value), placeholder: "sk-..." })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1 }, children: [
       /* @__PURE__ */ jsx("label", { children: "\u6A21\u578B" }),
-      /* @__PURE__ */ jsx("input", { value: p.model, onChange: (e) => updateProvider(p.id, "model", e.target.value) })
+      /* @__PURE__ */ jsx(Input, { size: "small", value: p.model, onChange: (e) => updateProvider(p.id, "model", e.target.value) })
     ] }),
     /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
       /* @__PURE__ */ jsx(Button, { size: "small", type: !isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "primary" : "default", onClick: () => setCfg((c) => ({ ...c, [isMedia ? "mediaProvider" : "activeProvider"]: p.id })), children: !isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "\u2713 \u4E3B" : "\u8BBE\u4E3A\u4E3B" }),
       /* @__PURE__ */ jsx(Button, { size: "small", loading: testing === p.id, onClick: () => test(p), children: "\u6D4B" }),
       /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => delProvider(p.id), children: "\u5220" })
     ] }),
-    testRes[p.id] && /* @__PURE__ */ jsx("div", { style: { flexBasis: "100%", fontSize: 11, color: testRes[p.id].ok ? "var(--ai-success)" : "var(--ai-error)" }, children: testRes[p.id].ok ? "\u2713 \u8FDE\u63A5\u6210\u529F" + (testRes[p.id].reply ? "" : "") : "\u2717 " + (testRes[p.id].error || "\u5931\u8D25") })
+    testRes[p.id] && /* @__PURE__ */ jsx("div", { style: { flexBasis: "100%", fontSize: 11, color: testRes[p.id].ok ? "var(--ai-success)" : "var(--ai-error)" }, children: testRes[p.id].ok ? "\u2713 \u8FDE\u63A5\u6210\u529F" : "\u2717 " + (testRes[p.id].error || "\u5931\u8D25") })
   ] }, p.id);
-  return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u8BBE\u7F6E", typewriter: false, onClose, onOk: save, okText: "\u4FDD\u5B58", cancelText: "\u53D6\u6D88", width: 720, children: /* @__PURE__ */ jsxs("div", { className: "settings-body", children: [
+  return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u8BBE\u7F6E", typewriter: false, onClose, onOk: save, okText: "\u4FDD\u5B58", cancelText: "\u53D6\u6D88", width: 720, children: /* @__PURE__ */ jsxs("div", { className: "settings-body modal-content", children: [
     /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4DA} LLM \u6587\u672C\u6A21\u578B" }),
     /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type !== "media").map((p) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: p.name }, p.id)) }),
     llmProviders.map((p) => renderProvider(p, false)),
@@ -469,24 +470,24 @@ function ChapterManager({ project, onUpdate }) {
       ] }),
       !collapsedGroups[gname] && chs.map(renderCh)
     ] }, gname)) }),
-    /* @__PURE__ */ jsxs(Modal, { open: addOpen, title: "\u6DFB\u52A0\u7AE0\u8282", typewriter: false, onClose: () => setAddOpen(false), onOk: addChapter, okText: "\u6DFB\u52A0", cancelText: "\u53D6\u6D88", children: [
+    /* @__PURE__ */ jsx(Modal, { open: addOpen, title: "\u6DFB\u52A0\u7AE0\u8282", typewriter: false, onClose: () => setAddOpen(false), onOk: addChapter, okText: "\u6DFB\u52A0", cancelText: "\u53D6\u6D88", children: /* @__PURE__ */ jsxs("div", { className: "modal-content", children: [
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
         /* @__PURE__ */ jsx("label", { children: "\u5377/\u5206\u7EC4\uFF08\u53EF\u9009\uFF09" }),
-        /* @__PURE__ */ jsx(Input, { value: newGroup, onChange: (e) => setNewGroup(e.target.value), placeholder: "\u5982\uFF1A\u7B2C\u4E00\u5377" })
+        /* @__PURE__ */ jsx(Input, { value: newGroup, onChange: (e) => setNewGroup(e.target.value), placeholder: "\u5982\uFF1A\u7B2C\u4E00\u5377", allowClear: true })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
         /* @__PURE__ */ jsx("label", { children: "\u7AE0\u8282\u6807\u9898" }),
-        /* @__PURE__ */ jsx(Input, { value: newTitle, onChange: (e) => setNewTitle(e.target.value), placeholder: "\u5982\uFF1A\u7B2C\u4E00\u7AE0 \u521D\u9047" })
+        /* @__PURE__ */ jsx(Input, { value: newTitle, onChange: (e) => setNewTitle(e.target.value), placeholder: "\u5982\uFF1A\u7B2C\u4E00\u7AE0 \u521D\u9047", allowClear: true })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
         /* @__PURE__ */ jsx("label", { children: "\u7AE0\u8282\u5185\u5BB9" }),
-        /* @__PURE__ */ jsx("textarea", { value: newContent, onChange: (e) => setNewContent(e.target.value), style: { minHeight: 120, width: "100%", border: "2px solid var(--ai-border)", borderRadius: 8, padding: 8, fontSize: 12, fontFamily: "inherit" } })
+        /* @__PURE__ */ jsx("textarea", { value: newContent, onChange: (e) => setNewContent(e.target.value), style: { minHeight: 120 } })
       ] })
-    ] }),
-    /* @__PURE__ */ jsxs(Modal, { open: importOpen, title: "\u6279\u91CF\u5206\u7AE0\u5BFC\u5165", typewriter: false, onClose: () => setImportOpen(false), onOk: doImport, okText: "\u5BFC\u5165", cancelText: "\u53D6\u6D88", width: 620, children: [
+    ] }) }),
+    /* @__PURE__ */ jsx(Modal, { open: importOpen, title: "\u6279\u91CF\u5206\u7AE0\u5BFC\u5165", typewriter: false, onClose: () => setImportOpen(false), onOk: doImport, okText: "\u5BFC\u5165", cancelText: "\u53D6\u6D88", width: 620, children: /* @__PURE__ */ jsxs("div", { className: "modal-content", children: [
       /* @__PURE__ */ jsx("p", { style: { fontSize: 12, color: "var(--ai-text-muted)", marginBottom: 8 }, children: '\u7C98\u8D34\u5168\u6587\uFF0C\u7CFB\u7EDF\u6309"\u7B2CX\u7AE0/Chapter N"\u81EA\u52A8\u5207\u5206\u4E3A\u591A\u4E2A\u7AE0\u8282\u3002' }),
-      /* @__PURE__ */ jsx("textarea", { value: importText, onChange: (e) => setImportText(e.target.value), style: { width: "100%", minHeight: 220, border: "2px solid var(--ai-border)", borderRadius: 8, padding: 10, fontSize: 13, fontFamily: "inherit" } })
-    ] })
+      /* @__PURE__ */ jsx("textarea", { value: importText, onChange: (e) => setImportText(e.target.value), style: { width: "100%", minHeight: 220 } })
+    ] }) })
   ] });
 }
 function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, analysisSource, setAnalysisSource }) {

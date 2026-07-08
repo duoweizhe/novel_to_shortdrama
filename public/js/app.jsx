@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Button, Input, Modal, Switch, Tag } from 'animal-island-ui';
+import { Button, Input, Modal, Switch, Tag, Select, Card } from 'animal-island-ui';
 import { api } from './api.js';
 import { EXAMPLE_PROJECT } from './example.js';
 
@@ -77,25 +77,23 @@ function NewProjectModal({ open, onClose, onCreate }) {
   const [style, setStyle] = useS('cinematic');
   useE(() => { if (open) { setName(''); setStyle('cinematic'); } }, [open]);
   if (!open) return null;
+  const styleOptions = [
+    { key: 'cinematic', label: '电影写实' }, { key: 'anime', label: '日漫风' }, { key: 'dongman', label: '国漫风' },
+    { key: '3d', label: '3D动画' }, { key: 'realistic', label: '仿真人' }, { key: 'cyberpunk', label: '赛博朋克' },
+    { key: 'fantasy', label: '奇幻风' }, { key: 'ink', label: '水墨风' },
+  ];
   return (
-    <Modal open={open} title="🎬 新建项目" typewriter={false} onClose={onClose} okText="创建" cancelText="取消"
+    <Modal open={open} title="🎬 新建项目" onClose={onClose} okText="创建" cancelText="取消" typewriter={false}
       onOk={() => { if (!name.trim()) { toast('请输入项目名', 'error'); return; } onCreate(name.trim(), style); }}>
-      <div className="ai-field">
-        <label>项目名称</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="如：最后一班电梯" allowClear />
-      </div>
-      <div className="ai-field">
-        <label>默认视觉风格</label>
-        <select value={style} onChange={e => setStyle(e.target.value)} style={{ width: '100%', padding: '7px 10px', border: '2px solid var(--ai-border)', borderRadius: 8, background: 'var(--ai-bg-content)', fontSize: 13 }}>
-          <option value="cinematic">电影写实</option>
-          <option value="anime">日漫风</option>
-          <option value="dongman">国漫风</option>
-          <option value="3d">3D动画</option>
-          <option value="realistic">仿真人</option>
-          <option value="cyberpunk">赛博朋克</option>
-          <option value="fantasy">奇幻风</option>
-          <option value="ink">水墨风</option>
-        </select>
+      <div className="modal-content">
+        <div className="ai-field">
+          <label>项目名称</label>
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="如：最后一班电梯" allowClear size="large" />
+        </div>
+        <div className="ai-field">
+          <label>默认视觉风格</label>
+          <Select options={styleOptions} value={style} onChange={val => setStyle(val)} />
+        </div>
       </div>
     </Modal>
   );
@@ -127,10 +125,10 @@ function SettingsModal({ open, onClose, onSaved }) {
 
   const renderProvider = (p, isMedia) => (
     <div key={p.id} className={`provider-row ${(!isMedia && p.id === cfg.activeProvider) || (isMedia && p.id === cfg.mediaProvider) ? 'active' : ''}`}>
-      <div className="field-mini"><label>名称</label><input value={p.name} onChange={e => updateProvider(p.id, 'name', e.target.value)} /></div>
-      <div className="field-mini" style={{ flex: 2 }}><label>Base URL</label><input value={p.baseUrl} onChange={e => updateProvider(p.id, 'baseUrl', e.target.value)} placeholder="https://..." /></div>
-      <div className="field-mini" style={{ flex: 1.5 }}><label>API Key</label><input type="password" value={p.apiKey} onChange={e => updateProvider(p.id, 'apiKey', e.target.value)} placeholder="sk-..." /></div>
-      <div className="field-mini" style={{ flex: 1 }}><label>模型</label><input value={p.model} onChange={e => updateProvider(p.id, 'model', e.target.value)} /></div>
+      <div className="field-mini"><label>名称</label><Input size="small" value={p.name} onChange={e => updateProvider(p.id, 'name', e.target.value)} /></div>
+      <div className="field-mini" style={{ flex: 2 }}><label>Base URL</label><Input size="small" value={p.baseUrl} onChange={e => updateProvider(p.id, 'baseUrl', e.target.value)} placeholder="https://..." /></div>
+      <div className="field-mini" style={{ flex: 1.5 }}><label>API Key</label><Input size="small" type="password" value={p.apiKey} onChange={e => updateProvider(p.id, 'apiKey', e.target.value)} placeholder="sk-..." /></div>
+      <div className="field-mini" style={{ flex: 1 }}><label>模型</label><Input size="small" value={p.model} onChange={e => updateProvider(p.id, 'model', e.target.value)} /></div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <Button size="small" type={(!isMedia && p.id === cfg.activeProvider) || (isMedia && p.id === cfg.mediaProvider) ? 'primary' : 'default'} onClick={() => setCfg(c => ({ ...c, [isMedia ? 'mediaProvider' : 'activeProvider']: p.id }))}>
           {(!isMedia && p.id === cfg.activeProvider) || (isMedia && p.id === cfg.mediaProvider) ? '✓ 主' : '设为主'}
@@ -138,13 +136,13 @@ function SettingsModal({ open, onClose, onSaved }) {
         <Button size="small" loading={testing === p.id} onClick={() => test(p)}>测</Button>
         <Button size="small" danger onClick={() => delProvider(p.id)}>删</Button>
       </div>
-      {testRes[p.id] && <div style={{ flexBasis: '100%', fontSize: 11, color: testRes[p.id].ok ? 'var(--ai-success)' : 'var(--ai-error)' }}>{testRes[p.id].ok ? '✓ 连接成功' + (testRes[p.id].reply ? '' : '') : '✗ ' + (testRes[p.id].error || '失败')}</div>}
+      {testRes[p.id] && <div style={{ flexBasis: '100%', fontSize: 11, color: testRes[p.id].ok ? 'var(--ai-success)' : 'var(--ai-error)' }}>{testRes[p.id].ok ? '✓ 连接成功' : '✗ ' + (testRes[p.id].error || '失败')}</div>}
     </div>
   );
 
   return (
     <Modal open={open} title="⚙️ 设置" typewriter={false} onClose={onClose} onOk={save} okText="保存" cancelText="取消" width={720}>
-      <div className="settings-body">
+      <div className="settings-body modal-content">
         <div className="card-title">📚 LLM 文本模型</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
           {cfg.presets.filter(p => p.type !== 'media').map(p => (
@@ -277,13 +275,17 @@ function ChapterManager({ project, onUpdate }) {
       )}
 
       <Modal open={addOpen} title="添加章节" typewriter={false} onClose={() => setAddOpen(false)} onOk={addChapter} okText="添加" cancelText="取消">
-        <div className="ai-field"><label>卷/分组（可选）</label><Input value={newGroup} onChange={e => setNewGroup(e.target.value)} placeholder="如：第一卷" /></div>
-        <div className="ai-field"><label>章节标题</label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="如：第一章 初遇" /></div>
-        <div className="ai-field"><label>章节内容</label><textarea value={newContent} onChange={e => setNewContent(e.target.value)} style={{ minHeight: 120, width: '100%', border: '2px solid var(--ai-border)', borderRadius: 8, padding: 8, fontSize: 12, fontFamily: 'inherit' }} /></div>
+        <div className="modal-content">
+          <div className="ai-field"><label>卷/分组（可选）</label><Input value={newGroup} onChange={e => setNewGroup(e.target.value)} placeholder="如：第一卷" allowClear /></div>
+          <div className="ai-field"><label>章节标题</label><Input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="如：第一章 初遇" allowClear /></div>
+          <div className="ai-field"><label>章节内容</label><textarea value={newContent} onChange={e => setNewContent(e.target.value)} style={{ minHeight: 120 }} /></div>
+        </div>
       </Modal>
       <Modal open={importOpen} title="批量分章导入" typewriter={false} onClose={() => setImportOpen(false)} onOk={doImport} okText="导入" cancelText="取消" width={620}>
-        <p style={{ fontSize: 12, color: 'var(--ai-text-muted)', marginBottom: 8 }}>粘贴全文，系统按"第X章/Chapter N"自动切分为多个章节。</p>
-        <textarea value={importText} onChange={e => setImportText(e.target.value)} style={{ width: '100%', minHeight: 220, border: '2px solid var(--ai-border)', borderRadius: 8, padding: 10, fontSize: 13, fontFamily: 'inherit' }} />
+        <div className="modal-content">
+          <p style={{ fontSize: 12, color: 'var(--ai-text-muted)', marginBottom: 8 }}>粘贴全文，系统按"第X章/Chapter N"自动切分为多个章节。</p>
+          <textarea value={importText} onChange={e => setImportText(e.target.value)} style={{ width: '100%', minHeight: 220 }} />
+        </div>
       </Modal>
     </div>
   );
