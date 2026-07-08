@@ -53,6 +53,9 @@ var api = {
   deleteProject: (id) => http("/api/projects/" + id, { method: "DELETE" }),
   importProject: (data) => http("/api/projects/import", { method: "POST", body: data }),
   importChapters: (id, content) => http(`/api/projects/${id}/chapters/import`, { method: "POST", body: { content } }),
+  addChapter: (id, title, content, group) => http(`/api/projects/${id}/chapters`, { method: "POST", body: { title, content, group } }),
+  updateChapter: (id, chId, patch) => http(`/api/projects/${id}/chapters/${chId}`, { method: "PUT", body: patch }),
+  deleteChapter: (id, chId) => http(`/api/projects/${id}/chapters/${chId}`, { method: "DELETE" }),
   getKnowledge: (id) => http(`/api/projects/${id}/knowledge`),
   updateKnowledge: (id, kb) => http(`/api/projects/${id}/knowledge`, { method: "PUT", body: kb }),
   exportMd: (id) => `/api/projects/${id}/export-md`,
@@ -63,8 +66,8 @@ var api = {
   getConfig: () => http("/api/config/llm"),
   saveConfig: (cfg) => http("/api/config/llm", { method: "PUT", body: cfg }),
   testConn: (baseUrl, apiKey, model) => http("/api/config/llm/test", { method: "POST", body: { baseUrl, apiKey, model } }),
-  genImage: (prompt2, negativePrompt, size, style) => http("/api/generate/image", { method: "POST", body: { prompt: prompt2, negativePrompt, size, visualStyle: style } }),
-  genVideo: (prompt2, style, opts) => http("/api/generate/video", { method: "POST", body: { prompt: prompt2, visualStyle: style, ...opts } }),
+  genImage: (prompt, negativePrompt, size, style) => http("/api/generate/image", { method: "POST", body: { prompt, negativePrompt, size, visualStyle: style } }),
+  genVideo: (prompt, style, opts) => http("/api/generate/video", { method: "POST", body: { prompt, visualStyle: style, ...opts } }),
   getVideo: (id) => http("/api/generate/video/" + id),
   preprocess: (content, onData, signal) => sse("/api/preprocess", { content }, onData, signal),
   analyze: (params, onData, signal) => sse("/api/analyze", params, onData, signal),
@@ -116,9 +119,9 @@ var EXAMPLE_PROJECT = {
   results: {
     characters: {
       characters: [
-        { name: "\u6797\u590F", role: "\u4E3B\u89D2", gender: "\u5973", age: "28", appearance: "\u9F50\u80A9\u77ED\u53D1\uFF0C\u4E94\u5B98\u6E05\u7626\uFF0C\u773C\u4E0B\u6709\u75B2\u6001\uFF0C\u80A4\u8272\u504F\u51B7\u767D", personality: "\u51B7\u9759\u3001\u6267\u7740\u3001\u6709\u8C03\u67E5\u8BB0\u8005\u7684\u654F\u9510\uFF0C\u9047\u9669\u65F6\u538B\u6291\u6050\u60E7", costume: "\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\uFF0C\u6DF1\u7070\u98CE\u8863\uFF0C\u630E\u5E06\u5E03\u630E\u5305\uFF0C\u9888\u6302\u5DE5\u724C", arc: "\u4ECE\u81EA\u4FE1\u8C03\u67E5\u8005\u2192\u88AB\u672A\u77E5\u529B\u91CF\u51DD\u89C6\u7684\u730E\u7269", imagePromptZh: "\u4E00\u4F4D28\u5C81\u77ED\u53D1\u5973\u8BB0\u8005\uFF0C\u9F50\u80A9\u9ED1\u53D1\uFF0C\u51B7\u767D\u80A4\u8272\uFF0C\u7A7F\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\u4E0E\u6DF1\u7070\u98CE\u8863\uFF0C\u630E\u5E06\u5E03\u5305\uFF0C\u795E\u60C5\u51B7\u5CFB\u75B2\u60EB\uFF0C\u51B7\u8C03\u7535\u5F71\u5149\u5F71\uFF0C\u534A\u8EAB\u50CF", imagePromptEn: "28-year-old female journalist, shoulder-length black hair, pale cold skin, black turtleneck and dark grey trench coat, canvas shoulder bag, cold resolute exhausted expression, cinematic cold-toned lighting, half-body portrait, 16:9" },
-        { name: "\u8001\u5468", role: "\u914D\u89D2", gender: "\u7537", age: "52", appearance: "\u82B1\u767D\u5BF8\u5934\uFF0C\u65B9\u8138\uFF0C\u7709\u9AA8\u9AD8\uFF0C\u4E0B\u988C\u80E1\u832C", personality: "\u8C28\u5C0F\u614E\u5FAE\uFF0C\u89C1\u8FC7\u602A\u4E8B\uFF0C\u5BF9\u591C\u73ED\u89C4\u77E9\u8FD1\u4E4E\u8FF7\u4FE1", costume: "\u6DF1\u84DD\u4FDD\u5B89\u5236\u670D\uFF0C\u80F8\u524D\u522B\u5BF9\u8BB2\u673A\uFF0C\u8170\u95F4\u6302\u624B\u7535\u7B52", arc: "\u65C1\u89C2\u8005\u2192\u8BD5\u56FE\u8B66\u544A\u5374\u65E0\u80FD\u4E3A\u529B", imagePromptZh: "\u4E00\u4F4D52\u5C81\u591C\u73ED\u4FDD\u5B89\uFF0C\u82B1\u767D\u5BF8\u5934\uFF0C\u65B9\u8138\u80E1\u832C\uFF0C\u7A7F\u6DF1\u84DD\u4FDD\u5B89\u5236\u670D\uFF0C\u80F8\u524D\u522B\u5BF9\u8BB2\u673A\uFF0C\u795E\u60C5\u7D27\u5F20\uFF0C\u51B7\u8C03\u76D1\u89C6\u5668\u5149\u7EBF\uFF0C\u534A\u8EAB\u50CF", imagePromptEn: "52-year-old night-shift security guard, grey buzz cut, square jaw stubble, dark blue uniform, walkie-talkie on chest, tense expression, cold monitor glow, half-body portrait, cinematic, 16:9" },
-        { name: "\u4EBA\u5F71", role: "\u53CD\u6D3E/\u8C1C\u56E2", gender: "\u672A\u77E5", age: "\u4E0D\u660E", appearance: "\u8EAB\u5F62\u4FEE\u957F\uFF0C\u9762\u5BB9\u9690\u4E8E\u9634\u5F71\uFF0C\u8F6E\u5ED3\u6A21\u7CCA", personality: "\u6C89\u9ED8\u3001\u8BE1\u8C32\uFF0C\u610F\u56FE\u4E0D\u660E", costume: "\u7070\u8272\u98CE\u8863\uFF0C\u7ACB\u9886\u906E\u4F4F\u4E0B\u534A\u5F20\u8138\uFF0C\u53CC\u624B\u82CD\u767D", arc: "\u795E\u79D8\u5B58\u5728\uFF0C\u6307\u5411\u7B14\u8BB0\u540E\u706F\u706D", imagePromptZh: "\u4E00\u4E2A\u8EAB\u5F62\u4FEE\u957F\u7684\u795E\u79D8\u4EBA\u5F71\uFF0C\u7A7F\u7070\u8272\u7ACB\u9886\u98CE\u8863\uFF0C\u9762\u90E8\u9690\u4E8E\u9634\u5F71\u53EA\u89C1\u8F6E\u5ED3\uFF0C\u53CC\u624B\u82CD\u767D\uFF0C\u5E7D\u6697\u51B7\u5149\uFF0C\u60AC\u7591\u6C1B\u56F4\uFF0C\u5168\u8EAB\u50CF", imagePromptEn: "tall slender mysterious silhouette in grey high-collar trench coat, face hidden in shadow only outline visible, pale hands, dim cold light, eerie thriller atmosphere, full-body shot, cinematic, 16:9" }
+        { name: "\u6797\u590F", role: "\u4E3B\u89D2", gender: "\u5973", age: "28", appearance: "\u9F50\u80A9\u77ED\u53D1\uFF0C\u4E94\u5B98\u6E05\u7626\uFF0C\u773C\u4E0B\u6709\u75B2\u6001\uFF0C\u80A4\u8272\u504F\u51B7\u767D", personality: "\u51B7\u9759\u3001\u6267\u7740\u3001\u6709\u8C03\u67E5\u8BB0\u8005\u7684\u654F\u9510\uFF0C\u9047\u9669\u65F6\u538B\u6291\u6050\u60E7", costume: "\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\uFF0C\u6DF1\u7070\u98CE\u8863\uFF0C\u630E\u5E06\u5E03\u630E\u5305\uFF0C\u9888\u6302\u5DE5\u724C", arc: "\u4ECE\u81EA\u4FE1\u8C03\u67E5\u8005\u2192\u88AB\u672A\u77E5\u529B\u91CF\u51DD\u89C6\u7684\u730E\u7269", facePromptZh: "28\u5C81\u5973\u6027\u9762\u90E8\u4E0A\u534A\u8EAB\u7279\u5199\uFF0C\u9F50\u80A9\u9ED1\u53D1\uFF0C\u51B7\u767D\u80A4\u8272\uFF0C\u6E05\u7626\u4E94\u5B98\uFF0C\u773C\u4E0B\u75B2\u6001\uFF0C\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\u9886\u53E3\uFF0C\u51B7\u8C03\u7535\u5F71\u5149\u5F71", facePromptEn: "upper body face close-up of 28yo female, shoulder-length black hair, pale cold skin, lean features, tired under-eyes, black turtleneck collar, cinematic cold-toned lighting", frontPromptZh: "28\u5C81\u5973\u6027\u6B63\u9762\u5168\u8EAB\u7167\uFF0C\u9F50\u80A9\u9ED1\u53D1\uFF0C\u7A7F\u9ED1\u8272\u9AD8\u9886\u6BDB\u8863\u6DF1\u7070\u98CE\u8863\u5E06\u5E03\u630E\u5305\u5DE5\u724C\uFF0C\u7AD9\u59FF\u633A\u62D4\uFF0C\u51B7\u8C03\u80CC\u666F", frontPromptEn: "front full-body shot of 28yo female, shoulder-length black hair, black turtleneck dark grey trench coat canvas bag ID lanyard, upright stance, cold-tone background", sidePromptZh: "28\u5C81\u5973\u6027\u4FA7\u9762\u5168\u8EAB\u7167\uFF0C\u4FA7\u8138\u9F50\u80A9\u53D1\uFF0C\u6DF1\u7070\u98CE\u8863\u4FA7\u8EAB\u8F6E\u5ED3\uFF0C\u5E06\u5E03\u630E\u5305\uFF0C\u51B7\u8C03\u5149\u5F71", sidePromptEn: "side full-body shot of 28yo female, side profile shoulder-length hair, dark grey trench coat side silhouette, canvas bag, cold-tone lighting", backPromptZh: "28\u5C81\u5973\u6027\u80CC\u9762\u5168\u8EAB\u7167\uFF0C\u9F50\u80A9\u53D1\u80CC\u5F71\uFF0C\u6DF1\u7070\u98CE\u8863\u80CC\u9762\uFF0C\u5E06\u5E03\u630E\u5305\uFF0C\u5DE5\u724C\u6302\u7EF3", backPromptEn: "back full-body shot of 28yo female, shoulder-length hair from behind, dark grey trench coat back, canvas bag, ID lanyard" },
+        { name: "\u8001\u5468", role: "\u914D\u89D2", gender: "\u7537", age: "52", appearance: "\u82B1\u767D\u5BF8\u5934\uFF0C\u65B9\u8138\uFF0C\u7709\u9AA8\u9AD8\uFF0C\u4E0B\u988C\u80E1\u832C", personality: "\u8C28\u5C0F\u614E\u5FAE\uFF0C\u89C1\u8FC7\u602A\u4E8B\uFF0C\u5BF9\u591C\u73ED\u89C4\u77E9\u8FD1\u4E4E\u8FF7\u4FE1", costume: "\u6DF1\u84DD\u4FDD\u5B89\u5236\u670D\uFF0C\u80F8\u524D\u522B\u5BF9\u8BB2\u673A\uFF0C\u8170\u95F4\u6302\u624B\u7535\u7B52", arc: "\u65C1\u89C2\u8005\u2192\u8BD5\u56FE\u8B66\u544A\u5374\u65E0\u80FD\u4E3A\u529B", facePromptZh: "52\u5C81\u7537\u6027\u9762\u90E8\u7279\u5199\uFF0C\u82B1\u767D\u5BF8\u5934\uFF0C\u65B9\u8138\u80E1\u832C\uFF0C\u7709\u9AA8\u9AD8\uFF0C\u7D27\u5F20\u795E\u60C5\uFF0C\u6DF1\u84DD\u5236\u670D\u9886\u53E3\uFF0C\u51B7\u8C03\u76D1\u89C6\u5668\u5149\u7EBF", facePromptEn: "face close-up of 52yo male, grey buzz cut, square jaw stubble, prominent brow, tense expression, dark blue uniform collar, cold monitor glow", frontPromptZh: "52\u5C81\u7537\u6027\u6B63\u9762\u5168\u8EAB\u7167\uFF0C\u82B1\u767D\u5BF8\u5934\uFF0C\u6DF1\u84DD\u4FDD\u5B89\u5236\u670D\u5BF9\u8BB2\u673A\u624B\u7535\u7B52\uFF0C\u7AD9\u59FF\u62D8\u8C28", frontPromptEn: "front full-body shot of 52yo male, grey buzz cut, dark blue security uniform walkie-talkie flashlight, restrained stance", sidePromptZh: "52\u5C81\u7537\u6027\u4FA7\u9762\u5168\u8EAB\u7167\uFF0C\u82B1\u767D\u5BF8\u5934\u4FA7\u8138\uFF0C\u6DF1\u84DD\u5236\u670D\u4FA7\u8EAB\uFF0C\u80E1\u832C\u8F6E\u5ED3", sidePromptEn: "side full-body shot of 52yo male, grey buzz cut side profile, dark blue uniform side body, stubble silhouette", backPromptZh: "52\u5C81\u7537\u6027\u80CC\u9762\u5168\u8EAB\u7167\uFF0C\u82B1\u767D\u5BF8\u5934\u80CC\u5F71\uFF0C\u6DF1\u84DD\u5236\u670D\u80CC\u9762\uFF0C\u8170\u95F4\u624B\u7535", backPromptEn: "back full-body shot of 52yo male, grey buzz cut from behind, dark blue uniform back, waist flashlight" },
+        { name: "\u4EBA\u5F71", role: "\u53CD\u6D3E/\u8C1C\u56E2", gender: "\u672A\u77E5", age: "\u4E0D\u660E", appearance: "\u8EAB\u5F62\u4FEE\u957F\uFF0C\u9762\u5BB9\u9690\u4E8E\u9634\u5F71\uFF0C\u8F6E\u5ED3\u6A21\u7CCA", personality: "\u6C89\u9ED8\u3001\u8BE1\u8C32\uFF0C\u610F\u56FE\u4E0D\u660E", costume: "\u7070\u8272\u98CE\u8863\uFF0C\u7ACB\u9886\u906E\u4F4F\u4E0B\u534A\u5F20\u8138\uFF0C\u53CC\u624B\u82CD\u767D", arc: "\u795E\u79D8\u5B58\u5728\uFF0C\u6307\u5411\u7B14\u8BB0\u540E\u706F\u706D", facePromptZh: "\u795E\u79D8\u4EBA\u5F71\u9762\u90E8\u7279\u5199\uFF0C\u7ACB\u9886\u98CE\u8863\u906E\u4F4F\u4E0B\u534A\u8138\uFF0C\u4E0A\u534A\u8138\u9690\u4E8E\u9634\u5F71\u53EA\u89C1\u8F6E\u5ED3\uFF0C\u82CD\u767D\u53CC\u624B\uFF0C\u5E7D\u6697\u51B7\u5149", facePromptEn: "face close-up of mysterious silhouette, high-collar trench coat covering lower face, upper face hidden in shadow only outline visible, pale hands, dim cold light", frontPromptZh: "\u795E\u79D8\u4EBA\u5F71\u6B63\u9762\u5168\u8EAB\u7167\uFF0C\u7070\u8272\u7ACB\u9886\u98CE\u8863\uFF0C\u9762\u5BB9\u9690\u4E8E\u9634\u5F71\uFF0C\u8EAB\u5F62\u4FEE\u957F\uFF0C\u53CC\u624B\u82CD\u767D", frontPromptEn: "front full-body shot of mysterious silhouette, grey high-collar trench coat, face hidden in shadow, tall slender build, pale hands", sidePromptZh: "\u795E\u79D8\u4EBA\u5F71\u4FA7\u9762\u5168\u8EAB\u7167\uFF0C\u7070\u8272\u98CE\u8863\u4FA7\u8EAB\u8F6E\u5ED3\uFF0C\u7ACB\u9886\u906E\u9762\uFF0C\u4FEE\u957F\u8EAB\u5F62", sidePromptEn: "side full-body shot of mysterious silhouette, grey trench coat side silhouette, high collar covering face, slender build", backPromptZh: "\u795E\u79D8\u4EBA\u5F71\u80CC\u9762\u5168\u8EAB\u7167\uFF0C\u7070\u8272\u98CE\u8863\u80CC\u5F71\uFF0C\u7ACB\u9886\uFF0C\u4FEE\u957F\u8F6E\u5ED3", backPromptEn: "back full-body shot of mysterious silhouette, grey trench coat from behind, high collar, slender outline" }
       ]
     },
     scenes: {
@@ -174,18 +177,27 @@ function renderMd(md) {
     return md;
   }
 }
-function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport }) {
+function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, collapsed, onToggle }) {
   const fileRef = useR(null);
+  if (collapsed) {
+    return /* @__PURE__ */ jsxs("aside", { className: "sidebar collapsed", children: [
+      /* @__PURE__ */ jsx("div", { className: "sidebar-head", style: { justifyContent: "center" }, children: /* @__PURE__ */ jsx(Button, { size: "small", onClick: onToggle, children: "\xBB" }) }),
+      /* @__PURE__ */ jsxs("div", { className: "sidebar-list", style: { textAlign: "center", padding: "8px 4px" }, children: [
+        /* @__PURE__ */ jsx("div", { className: "proj-mini", title: "\u65B0\u5EFA\u9879\u76EE", onClick: onNew, style: { fontSize: 18, cursor: "pointer", padding: "8px 0" }, children: "\uFF0B" }),
+        projects.map((p) => /* @__PURE__ */ jsx("div", { title: p.name, className: `proj-mini ${p.id === currentId ? "active" : ""}`, onClick: () => onSelect(p.id), style: { padding: "6px 0", cursor: "pointer", fontSize: 13, borderRadius: 6, color: p.id === currentId ? "#fff" : "inherit" }, children: p.name.slice(0, 1) }, p.id))
+      ] })
+    ] });
+  }
   return /* @__PURE__ */ jsxs("aside", { className: "sidebar", children: [
     /* @__PURE__ */ jsxs("div", { className: "sidebar-head", children: [
-      /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", block: true, onClick: onNew, children: "+ \u65B0\u5EFA\u9879\u76EE" }),
+      /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: onNew, children: "+ \u65B0\u5EFA" }),
       /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => fileRef.current?.click(), children: "\u5BFC\u5165" }),
+      /* @__PURE__ */ jsx(Button, { size: "small", ghost: true, onClick: onToggle, style: { marginLeft: "auto" }, children: "\xAB" }),
       /* @__PURE__ */ jsx("input", { ref: fileRef, type: "file", accept: ".json", hidden: true, onChange: async (e) => {
         const f = e.target.files[0];
         if (!f) return;
-        const text = await f.text();
         try {
-          onImport(JSON.parse(text));
+          onImport(JSON.parse(await f.text()));
         } catch {
           toast("\u5BFC\u5165\u5931\u8D25", "error");
         }
@@ -194,8 +206,8 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport }) {
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "sidebar-list", children: [
       projects.length === 0 && /* @__PURE__ */ jsx("div", { style: { padding: 16, color: "var(--ai-text-muted)", fontSize: 12, textAlign: "center" }, children: "\u6682\u65E0\u9879\u76EE" }),
-      projects.map((p) => /* @__PURE__ */ jsxs("div", { className: `proj-item ${p.id === currentId ? "active" : ""}`, onClick: () => onSelect(p.id), children: [
-        /* @__PURE__ */ jsx("span", { children: p.name }),
+      projects.map((p) => /* @__PURE__ */ jsxs("div", { className: `proj-item ${p.id === currentId ? "active" : ""}`, onClick: () => onSelect(p.id), title: p.name, children: [
+        /* @__PURE__ */ jsx("span", { className: "proj-name", children: p.name }),
         /* @__PURE__ */ jsx("span", { className: "del", onClick: (e) => {
           e.stopPropagation();
           onDelete(p.id);
@@ -204,104 +216,274 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport }) {
     ] })
   ] });
 }
-function SettingsModal({ open, onClose }) {
+function NewProjectModal({ open, onClose, onCreate }) {
+  const [name, setName] = useS("");
+  const [style, setStyle] = useS("cinematic");
+  useE(() => {
+    if (open) {
+      setName("");
+      setStyle("cinematic");
+    }
+  }, [open]);
+  if (!open) return null;
+  return /* @__PURE__ */ jsxs(
+    Modal,
+    {
+      open,
+      title: "\u{1F3AC} \u65B0\u5EFA\u9879\u76EE",
+      onClose,
+      okText: "\u521B\u5EFA",
+      cancelText: "\u53D6\u6D88",
+      onOk: () => {
+        if (!name.trim()) {
+          toast("\u8BF7\u8F93\u5165\u9879\u76EE\u540D", "error");
+          return;
+        }
+        onCreate(name.trim(), style);
+      },
+      children: [
+        /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+          /* @__PURE__ */ jsx("label", { children: "\u9879\u76EE\u540D\u79F0" }),
+          /* @__PURE__ */ jsx(Input, { value: name, onChange: (e) => setName(e.target.value), placeholder: "\u5982\uFF1A\u6700\u540E\u4E00\u73ED\u7535\u68AF", allowClear: true })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+          /* @__PURE__ */ jsx("label", { children: "\u9ED8\u8BA4\u89C6\u89C9\u98CE\u683C" }),
+          /* @__PURE__ */ jsxs("select", { value: style, onChange: (e) => setStyle(e.target.value), style: { width: "100%", padding: "7px 10px", border: "2px solid var(--ai-border)", borderRadius: 8, background: "var(--ai-bg-content)", fontSize: 13 }, children: [
+            /* @__PURE__ */ jsx("option", { value: "cinematic", children: "\u7535\u5F71\u5199\u5B9E" }),
+            /* @__PURE__ */ jsx("option", { value: "anime", children: "\u65E5\u6F2B\u98CE" }),
+            /* @__PURE__ */ jsx("option", { value: "dongman", children: "\u56FD\u6F2B\u98CE" }),
+            /* @__PURE__ */ jsx("option", { value: "3d", children: "3D\u52A8\u753B" }),
+            /* @__PURE__ */ jsx("option", { value: "realistic", children: "\u4EFF\u771F\u4EBA" }),
+            /* @__PURE__ */ jsx("option", { value: "cyberpunk", children: "\u8D5B\u535A\u670B\u514B" }),
+            /* @__PURE__ */ jsx("option", { value: "fantasy", children: "\u5947\u5E7B\u98CE" }),
+            /* @__PURE__ */ jsx("option", { value: "ink", children: "\u6C34\u58A8\u98CE" })
+          ] })
+        ] })
+      ]
+    }
+  );
+}
+function SettingsModal({ open, onClose, onSaved }) {
   const [cfg, setCfg] = useS(null);
-  const [testing, setTesting] = useS(false);
-  const [testRes, setTestRes] = useS(null);
+  const [testing, setTesting] = useS(null);
+  const [testRes, setTestRes] = useS({});
   useE(() => {
     if (open) api.getConfig().then(setCfg).catch(() => {
     });
   }, [open]);
   if (!open || !cfg) return null;
-  const updateProvider = (id, field, val) => {
-    setCfg((c) => ({ ...c, providers: c.providers.map((p) => p.id === id ? { ...p, [field]: val } : p) }));
-  };
-  const addProvider = () => {
-    const id = "prov_" + Date.now().toString(36);
-    setCfg((c) => ({ ...c, providers: [...c.providers, { id, name: "\u65B0\u63D0\u4F9B\u5546", baseUrl: "", apiKey: "", model: "", type: "llm" }] }));
-  };
+  const llmProviders = cfg.providers.filter((p) => p.type !== "media");
+  const mediaProviders = cfg.providers.filter((p) => p.type === "media");
+  const updateProvider = (id, field, val) => setCfg((c) => ({ ...c, providers: c.providers.map((p) => p.id === id ? { ...p, [field]: val } : p) }));
+  const addProvider = (type) => setCfg((c) => ({ ...c, providers: [...c.providers, { id: "prov_" + Date.now().toString(36), name: "\u65B0" + (type === "media" ? "\u5A92\u4F53" : "LLM") + "\u63D0\u4F9B\u5546", baseUrl: "", apiKey: "", model: "", type }] }));
   const delProvider = (id) => setCfg((c) => ({ ...c, providers: c.providers.filter((p) => p.id !== id) }));
   const addPreset = (preset) => {
     if (cfg.providers.find((p) => p.id === preset.id)) return;
-    setCfg((c) => ({ ...c, providers: [...c.providers, { ...preset, type: "llm", apiKey: "" }] }));
+    setCfg((c) => ({ ...c, providers: [...c.providers, { ...preset, type: preset.type || "llm", apiKey: "" }] }));
   };
   const save = async () => {
     await api.saveConfig(cfg);
     toast("\u914D\u7F6E\u5DF2\u4FDD\u5B58", "ok");
+    onSaved?.();
     onClose();
   };
-  const test = async () => {
-    const p = cfg.providers.find((x) => x.id === cfg.activeProvider) || cfg.providers[0];
-    if (!p || !p.baseUrl || !p.apiKey) {
+  const test = async (p) => {
+    if (!p.baseUrl || !p.apiKey) {
       toast("\u8BF7\u586B\u5199\u5B8C\u6574", "error");
       return;
     }
-    setTesting(true);
-    setTestRes(null);
+    setTesting(p.id);
+    const r = { ...testRes };
     try {
-      const r = await api.testConn(p.baseUrl, p.apiKey, p.model);
-      setTestRes(r);
+      r[p.id] = await api.testConn(p.baseUrl, p.apiKey, p.model);
     } catch (e) {
-      setTestRes({ ok: false, error: e.message });
+      r[p.id] = { ok: false, error: e.message };
     }
-    setTesting(false);
+    setTestRes(r);
+    setTesting(null);
   };
-  return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u8BBE\u7F6E \u2014 LLM \u4E0E\u5A92\u4F53\u751F\u6210", onClose, onOk: save, okText: "\u4FDD\u5B58\u914D\u7F6E", cancelText: "\u53D6\u6D88", width: 680, children: /* @__PURE__ */ jsxs("div", { className: "settings-body", children: [
-    /* @__PURE__ */ jsxs("div", { style: { marginBottom: 14 }, children: [
-      /* @__PURE__ */ jsx("div", { className: "card-title", style: { marginBottom: 8 }, children: "\u9884\u8BBE\u63D0\u4F9B\u5546\uFF08\u70B9\u51FB\u6DFB\u52A0\uFF09" }),
-      /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" }, children: cfg.presets.map((p) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: p.name }, p.id)) })
+  const renderProvider = (p, isMedia) => /* @__PURE__ */ jsxs("div", { className: `provider-row ${!isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "active" : ""}`, children: [
+    /* @__PURE__ */ jsxs("div", { className: "field-mini", children: [
+      /* @__PURE__ */ jsx("label", { children: "\u540D\u79F0" }),
+      /* @__PURE__ */ jsx("input", { value: p.name, onChange: (e) => updateProvider(p.id, "name", e.target.value) })
     ] }),
-    /* @__PURE__ */ jsx("div", { className: "card-title", style: { marginBottom: 8 }, children: "\u5DF2\u914D\u7F6E\u63D0\u4F9B\u5546" }),
-    cfg.providers.map((p) => /* @__PURE__ */ jsxs("div", { className: `provider-row ${p.id === cfg.activeProvider ? "active" : ""}`, children: [
-      /* @__PURE__ */ jsxs("div", { className: "field-mini", children: [
-        /* @__PURE__ */ jsx("label", { children: "\u540D\u79F0" }),
-        /* @__PURE__ */ jsx("input", { value: p.name, onChange: (e) => updateProvider(p.id, "name", e.target.value) })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 2 }, children: [
-        /* @__PURE__ */ jsx("label", { children: "Base URL" }),
-        /* @__PURE__ */ jsx("input", { value: p.baseUrl, onChange: (e) => updateProvider(p.id, "baseUrl", e.target.value), placeholder: "https://api.openai.com/v1" })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1.5 }, children: [
-        /* @__PURE__ */ jsx("label", { children: "API Key" }),
-        /* @__PURE__ */ jsx("input", { type: "password", value: p.apiKey, onChange: (e) => updateProvider(p.id, "apiKey", e.target.value), placeholder: "sk-..." })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1 }, children: [
-        /* @__PURE__ */ jsx("label", { children: "\u6A21\u578B" }),
-        /* @__PURE__ */ jsx("input", { value: p.model, onChange: (e) => updateProvider(p.id, "model", e.target.value) })
-      ] }),
-      /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
-        /* @__PURE__ */ jsx(Button, { size: "small", type: p.id === cfg.activeProvider ? "primary" : "default", onClick: () => setCfg((c) => ({ ...c, activeProvider: p.id })), children: p.id === cfg.activeProvider ? "\u2713 \u4E3B" : "\u8BBE\u4E3A\u4E3B" }),
-        /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => delProvider(p.id), children: "\u5220" })
-      ] })
-    ] }, p.id)),
-    /* @__PURE__ */ jsx(Button, { size: "small", onClick: addProvider, style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49\u63D0\u4F9B\u5546" }),
-    /* @__PURE__ */ jsxs("div", { style: { marginTop: 16, display: "flex", gap: 10, alignItems: "center" }, children: [
-      /* @__PURE__ */ jsx(Button, { type: "primary", loading: testing, onClick: test, children: "\u6D4B\u8BD5\u8FDE\u63A5" }),
-      testRes && /* @__PURE__ */ jsx("span", { style: { fontSize: 12, color: testRes.ok ? "var(--ai-success)" : "var(--ai-error)" }, children: testRes.ok ? "\u2713 \u8FDE\u63A5\u6210\u529F" : "\u2717 " + (testRes.error || "\u5931\u8D25") })
+    /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 2 }, children: [
+      /* @__PURE__ */ jsx("label", { children: "Base URL" }),
+      /* @__PURE__ */ jsx("input", { value: p.baseUrl, onChange: (e) => updateProvider(p.id, "baseUrl", e.target.value), placeholder: "https://..." })
     ] }),
-    /* @__PURE__ */ jsx("p", { style: { fontSize: 11, color: "var(--ai-text-muted)", marginTop: 12 }, children: "\u63D0\u793A\uFF1AAPI Key \u5B58\u50A8\u5728\u670D\u52A1\u7AEF data/config.json\uFF0C\u524D\u7AEF\u4EC5\u663E\u793A\u8131\u654F\u3002\u56FE\u50CF/\u89C6\u9891\u751F\u6210\u9700\u914D\u7F6E\u542B Agnes \u7684\u63D0\u4F9B\u5546\u3002" })
+    /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1.5 }, children: [
+      /* @__PURE__ */ jsx("label", { children: "API Key" }),
+      /* @__PURE__ */ jsx("input", { type: "password", value: p.apiKey, onChange: (e) => updateProvider(p.id, "apiKey", e.target.value), placeholder: "sk-..." })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1 }, children: [
+      /* @__PURE__ */ jsx("label", { children: "\u6A21\u578B" }),
+      /* @__PURE__ */ jsx("input", { value: p.model, onChange: (e) => updateProvider(p.id, "model", e.target.value) })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
+      /* @__PURE__ */ jsx(Button, { size: "small", type: !isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "primary" : "default", onClick: () => setCfg((c) => ({ ...c, [isMedia ? "mediaProvider" : "activeProvider"]: p.id })), children: !isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "\u2713 \u4E3B" : "\u8BBE\u4E3A\u4E3B" }),
+      /* @__PURE__ */ jsx(Button, { size: "small", loading: testing === p.id, onClick: () => test(p), children: "\u6D4B" }),
+      /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => delProvider(p.id), children: "\u5220" })
+    ] }),
+    testRes[p.id] && /* @__PURE__ */ jsx("div", { style: { flexBasis: "100%", fontSize: 11, color: testRes[p.id].ok ? "var(--ai-success)" : "var(--ai-error)" }, children: testRes[p.id].ok ? "\u2713 \u8FDE\u63A5\u6210\u529F" + (testRes[p.id].reply ? "" : "") : "\u2717 " + (testRes[p.id].error || "\u5931\u8D25") })
+  ] }, p.id);
+  return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u8BBE\u7F6E", onClose, onOk: save, okText: "\u4FDD\u5B58", cancelText: "\u53D6\u6D88", width: 720, children: /* @__PURE__ */ jsxs("div", { className: "settings-body", children: [
+    /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4DA} LLM \u6587\u672C\u6A21\u578B" }),
+    /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type !== "media").map((p) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: p.name }, p.id)) }),
+    llmProviders.map((p) => renderProvider(p, false)),
+    /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("llm"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49LLM" }),
+    /* @__PURE__ */ jsx("div", { className: "card-title", style: { marginTop: 18 }, children: "\u{1F5BC}\uFE0F \u5A92\u4F53\u751F\u6210\uFF08Agnes/DALL\xB7E \u751F\u56FE\u751F\u89C6\u9891\uFF09" }),
+    /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type === "media").map((p) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: p.name }, p.id)) }),
+    mediaProviders.length === 0 && /* @__PURE__ */ jsx("div", { style: { fontSize: 12, color: "var(--ai-text-muted)", padding: 8 }, children: "\u672A\u914D\u7F6E\u5A92\u4F53\u63D0\u4F9B\u5546\uFF0C\u70B9\u51FB\u4E0A\u65B9\u9884\u8BBE\u6DFB\u52A0 Agnes AI \u6216 DALL\xB7E" }),
+    mediaProviders.map((p) => renderProvider(p, true)),
+    /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("media"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49\u5A92\u4F53" }),
+    /* @__PURE__ */ jsx("p", { style: { fontSize: 11, color: "var(--ai-text-muted)", marginTop: 14 }, children: "Key \u5B58\u50A8\u5728\u670D\u52A1\u7AEF data/config.json\uFF0C\u524D\u7AEF\u4EC5\u663E\u793A\u8131\u654F\u3002\u5A92\u4F53\u7528\u4E8E AI \u751F\u56FE/\u751F\u89C6\u9891\u3002" })
   ] }) });
 }
-function InputPanel({ project, onUpdate, onPreprocess, onAnalyze, onAnalyzeAll, styles, generating }) {
-  const [content, setContent] = useS(project?.content || "");
-  const [selectedModules, setSelectedModules] = useS(MODULES.map((m) => m.id));
+function ChapterManager({ project, onUpdate }) {
+  const [addOpen, setAddOpen] = useS(false);
+  const [newTitle, setNewTitle] = useS("");
+  const [newContent, setNewContent] = useS("");
+  const [newGroup, setNewGroup] = useS("");
+  const [editId, setEditId] = useS(null);
+  const [editTitle, setEditTitle] = useS("");
+  const [editContent, setEditContent] = useS("");
+  const [collapsedGroups, setCollapsedGroups] = useS({});
   const [importOpen, setImportOpen] = useS(false);
   const [importText, setImportText] = useS("");
-  const [preprocessData, setPreprocessData] = useS(null);
-  const [preprocessing, setPreprocessing] = useS(false);
+  const chapters = project?.chapters || [];
+  const groups = {};
+  chapters.forEach((ch) => {
+    const g = ch.group || "\u672A\u5206\u7EC4";
+    (groups[g] = groups[g] || []).push(ch);
+  });
+  const addChapter = async () => {
+    if (!newTitle.trim()) {
+      toast("\u8BF7\u8F93\u5165\u6807\u9898", "error");
+      return;
+    }
+    const ch = await api.addChapter(project.id, newTitle.trim(), newContent, newGroup.trim());
+    onUpdate({ chapters: [...chapters, ch] });
+    setAddOpen(false);
+    setNewTitle("");
+    setNewContent("");
+    setNewGroup("");
+    toast("\u7AE0\u8282\u5DF2\u6DFB\u52A0", "ok");
+  };
+  const saveEdit = async () => {
+    if (!editId) return;
+    await api.updateChapter(project.id, editId, { title: editTitle, content: editContent });
+    onUpdate({ chapters: chapters.map((c) => c.id === editId ? { ...c, title: editTitle, content: editContent } : c) });
+    setEditId(null);
+    toast("\u5DF2\u4FDD\u5B58", "ok");
+  };
+  const delChapter = async (id) => {
+    if (!confirm("\u5220\u9664\u8BE5\u7AE0\u8282\uFF1F")) return;
+    await api.deleteChapter(project.id, id);
+    onUpdate({ chapters: chapters.filter((c) => c.id !== id) });
+    toast("\u5DF2\u5220\u9664", "ok");
+  };
+  const doImport = async () => {
+    if (!importText.trim()) return;
+    try {
+      const r = await api.importChapters(project.id, importText);
+      toast(`\u5DF2\u5BFC\u5165 ${r.imported} \u7AE0`, "ok");
+      const p = await api.getProject(project.id);
+      onUpdate({ chapters: p.chapters });
+      setImportOpen(false);
+      setImportText("");
+    } catch (e) {
+      toast(e.message, "error");
+    }
+  };
+  return /* @__PURE__ */ jsxs("div", { className: "card", children: [
+    /* @__PURE__ */ jsxs("div", { className: "card-head", children: [
+      /* @__PURE__ */ jsxs("span", { className: "card-title", children: [
+        "\u{1F4DA} \u7AE0\u8282\u7BA1\u7406 (",
+        chapters.length,
+        ")"
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "card-actions", children: [
+        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setImportOpen(true), children: "\u6279\u91CF\u5206\u7AE0" }),
+        /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: () => setAddOpen(true), children: "+ \u6DFB\u52A0\u7AE0\u8282" })
+      ] })
+    ] }),
+    chapters.length === 0 ? /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, color: "var(--ai-text-muted)", padding: 12, textAlign: "center" }, children: [
+      '\u6682\u65E0\u7AE0\u8282\u3002\u53EF\u7C98\u8D34\u5168\u6587"\u6279\u91CF\u5206\u7AE0"\u81EA\u52A8\u6309"\u7B2CX\u7AE0"\u5207\u5206\uFF0C\u6216\u624B\u52A8"+ \u6DFB\u52A0\u7AE0\u8282"\u3002',
+      /* @__PURE__ */ jsx("br", {}),
+      /* @__PURE__ */ jsx("span", { style: { fontSize: 11 }, children: "\u957F\u7BC7\u5EFA\u8BAE\u5206\u7AE0\u7BA1\u7406\uFF1A\u6BCF\u7AE0\u5355\u72EC\u5206\u6790\uFF0C\u77E5\u8BC6\u5E93\u81EA\u52A8\u8DE8\u7AE0\u79EF\u7D2F\u4FDD\u6301\u4EBA\u7269/\u573A\u666F\u4E00\u81F4\u3002" })
+    ] }) : /* @__PURE__ */ jsx("div", { className: "chapter-tree", children: Object.entries(groups).map(([gname, chs]) => /* @__PURE__ */ jsxs("div", { className: "chapter-group", children: [
+      /* @__PURE__ */ jsxs("div", { className: "group-head", onClick: () => setCollapsedGroups((s) => ({ ...s, [gname]: !s[gname] })), children: [
+        /* @__PURE__ */ jsx("span", { className: "group-arrow", children: collapsedGroups[gname] ? "\u25B6" : "\u25BC" }),
+        /* @__PURE__ */ jsx("span", { className: "group-name", children: gname }),
+        /* @__PURE__ */ jsxs("span", { className: "group-count", children: [
+          "(",
+          chs.length,
+          ")"
+        ] })
+      ] }),
+      !collapsedGroups[gname] && chs.map((ch) => /* @__PURE__ */ jsx("div", { className: `chapter-item ${editId === ch.id ? "editing" : ""}`, children: editId === ch.id ? /* @__PURE__ */ jsxs("div", { className: "chapter-edit", children: [
+        /* @__PURE__ */ jsx("input", { value: editTitle, onChange: (e) => setEditTitle(e.target.value), style: { flex: 1, padding: "4px 8px", border: "1px solid var(--ai-border)", borderRadius: 6, fontSize: 12 } }),
+        /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: saveEdit, children: "\u4FDD\u5B58" }),
+        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setEditId(null), children: "\u53D6\u6D88" })
+      ] }) : /* @__PURE__ */ jsxs("div", { className: "chapter-row", onClick: () => {
+        setEditId(ch.id);
+        setEditTitle(ch.title);
+        setEditContent(ch.content || "");
+      }, children: [
+        /* @__PURE__ */ jsx("span", { className: "ch-icon", children: "\u{1F4C4}" }),
+        /* @__PURE__ */ jsx("span", { className: "ch-title", children: ch.title }),
+        /* @__PURE__ */ jsxs("span", { className: "ch-meta", children: [
+          (ch.content || "").length,
+          "\u5B57"
+        ] }),
+        /* @__PURE__ */ jsxs("span", { className: "ch-actions", children: [
+          ch.analysis?.characters && /* @__PURE__ */ jsx(Tag, { size: "small", color: "app-green", children: "\u5DF2\u5206\u6790" }),
+          /* @__PURE__ */ jsx("span", { className: "ch-del", onClick: (e) => {
+            e.stopPropagation();
+            delChapter(ch.id);
+          }, children: "\u2715" })
+        ] })
+      ] }) }, ch.id))
+    ] }, gname)) }),
+    editId && /* @__PURE__ */ jsxs("div", { className: "ai-field", style: { marginTop: 10 }, children: [
+      /* @__PURE__ */ jsx("label", { children: "\u7AE0\u8282\u5185\u5BB9" }),
+      /* @__PURE__ */ jsx("textarea", { value: editContent, onChange: (e) => setEditContent(e.target.value), style: { minHeight: 120, width: "100%", border: "1px solid var(--ai-border)", borderRadius: 6, padding: 8, fontSize: 12, fontFamily: "inherit", background: "var(--ai-bg-content)" } }),
+      /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: saveEdit, style: { marginTop: 6 }, children: "\u4FDD\u5B58\u5185\u5BB9" })
+    ] }),
+    /* @__PURE__ */ jsxs(Modal, { open: addOpen, title: "\u6DFB\u52A0\u7AE0\u8282", onClose: () => setAddOpen(false), onOk: addChapter, okText: "\u6DFB\u52A0", cancelText: "\u53D6\u6D88", children: [
+      /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+        /* @__PURE__ */ jsx("label", { children: "\u5377/\u5206\u7EC4\uFF08\u53EF\u9009\uFF09" }),
+        /* @__PURE__ */ jsx(Input, { value: newGroup, onChange: (e) => setNewGroup(e.target.value), placeholder: "\u5982\uFF1A\u7B2C\u4E00\u5377" })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+        /* @__PURE__ */ jsx("label", { children: "\u7AE0\u8282\u6807\u9898" }),
+        /* @__PURE__ */ jsx(Input, { value: newTitle, onChange: (e) => setNewTitle(e.target.value), placeholder: "\u5982\uFF1A\u7B2C\u4E00\u7AE0 \u521D\u9047" })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+        /* @__PURE__ */ jsx("label", { children: "\u7AE0\u8282\u5185\u5BB9" }),
+        /* @__PURE__ */ jsx("textarea", { value: newContent, onChange: (e) => setNewContent(e.target.value), style: { minHeight: 120, width: "100%", border: "2px solid var(--ai-border)", borderRadius: 8, padding: 8, fontSize: 12, fontFamily: "inherit" } })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs(Modal, { open: importOpen, title: "\u6279\u91CF\u5206\u7AE0\u5BFC\u5165", onClose: () => setImportOpen(false), onOk: doImport, okText: "\u5BFC\u5165", cancelText: "\u53D6\u6D88", width: 620, children: [
+      /* @__PURE__ */ jsx("p", { style: { fontSize: 12, color: "var(--ai-text-muted)", marginBottom: 8 }, children: '\u7C98\u8D34\u5168\u6587\uFF0C\u7CFB\u7EDF\u6309"\u7B2CX\u7AE0/Chapter N"\u81EA\u52A8\u5207\u5206\u4E3A\u591A\u4E2A\u7AE0\u8282\u3002' }),
+      /* @__PURE__ */ jsx("textarea", { value: importText, onChange: (e) => setImportText(e.target.value), style: { width: "100%", minHeight: 220, border: "2px solid var(--ai-border)", borderRadius: 8, padding: 10, fontSize: 13, fontFamily: "inherit" } })
+    ] })
+  ] });
+}
+function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters }) {
+  const [content, setContent] = useS(project?.content || "");
+  const [selectedModules, setSelectedModules] = useS(MODULES.map((m) => m.id));
   const [status, setStatus] = useS("");
-  const abortRef = useR(null);
+  const [preprocessing, setPreprocessing] = useS(false);
   useE(() => {
     setContent(project?.content || "");
-    setPreprocessData(null);
+    setStatus("");
   }, [project?.id]);
   const onContentChange = (v) => {
     setContent(v);
     onUpdate({ content: v });
   };
-  const toggleModule = (id) => {
-    setSelectedModules((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
-  };
+  const toggleModule = (id) => setSelectedModules((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
   const doPreprocess = async () => {
     if (!content.trim()) {
       toast("\u8BF7\u5148\u8F93\u5165\u5185\u5BB9", "error");
@@ -309,57 +491,44 @@ function InputPanel({ project, onUpdate, onPreprocess, onAnalyze, onAnalyzeAll, 
     }
     setPreprocessing(true);
     setStatus("\u9884\u5904\u7406\u4E2D...");
-    setPreprocessData(null);
     try {
       await api.preprocess(content, (d) => {
         if (d.status === "split_done") setStatus(`\u5DF2\u5206 ${d.total} \u6BB5`);
         if (d.status === "summarizing") setStatus(`\u5206\u6790\u7B2C ${d.progress}/${d.total} \u6BB5...`);
         if (d.status === "synthesizing") setStatus("\u7EFC\u5408\u5206\u6790\u4E2D...");
         if (d.status === "done") {
-          setPreprocessData(d);
           setStatus("\u9884\u5904\u7406\u5B8C\u6210");
           toast("\u9884\u5904\u7406\u5B8C\u6210", "ok");
         }
-        if (d.status === "segment_done") setPreprocessData((prev) => ({ ...prev, segments: [...prev?.segments || [], d.data] }));
       });
     } catch (e) {
-      setStatus("\u9884\u5904\u7406\u5931\u8D25: " + e.message);
+      setStatus("\u5931\u8D25: " + e.message);
       toast("\u9884\u5904\u7406\u5931\u8D25", "error");
     }
     setPreprocessing(false);
   };
-  const doImportChapters = async () => {
-    if (!importText.trim()) return;
-    try {
-      const r = await api.importChapters(project.id, importText);
-      toast(`\u5DF2\u5BFC\u5165 ${r.imported} \u7AE0`, "ok");
-      setImportOpen(false);
-      setImportText("");
-    } catch (e) {
-      toast(e.message, "error");
-    }
-  };
   return /* @__PURE__ */ jsxs("div", { className: "input-panel", children: [
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
-      /* @__PURE__ */ jsxs("div", { className: "card-head", children: [
-        /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4DD} \u6E90\u6587\u672C" }),
-        /* @__PURE__ */ jsxs("div", { className: "card-actions", children: [
-          /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setImportOpen(true), children: "\u5206\u7AE0\u5BFC\u5165" }),
-          /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => onAnalyze && onLoadExample(), children: "\u52A0\u8F7D\u793A\u4F8B" })
-        ] })
-      ] }),
-      /* @__PURE__ */ jsx("textarea", { id: "sourceText", value: content, onChange: (e) => onContentChange(e.target.value), placeholder: "\u7C98\u8D34\u5C0F\u8BF4\u3001\u6545\u4E8B\u6216\u5267\u672C\u6587\u672C...", spellCheck: false }),
+      /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4DD} \u6E90\u6587\u672C" }) }),
+      /* @__PURE__ */ jsx("textarea", { id: "sourceText", value: content, onChange: (e) => onContentChange(e.target.value), placeholder: "\u7C98\u8D34\u5C0F\u8BF4/\u6545\u4E8B/\u5267\u672C\u5168\u6587\uFF0C\u6216\u4F7F\u7528\u4E0B\u65B9\u7AE0\u8282\u7BA1\u7406\u5206\u7AE0...", spellCheck: false }),
       /* @__PURE__ */ jsxs("div", { className: "char-count", children: [
         content.length,
         " \u5B57"
       ] })
     ] }),
+    /* @__PURE__ */ jsx(ChapterManager, { project, onUpdate }),
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
       /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F3A8} \u89C6\u89C9\u98CE\u683C" }) }),
       /* @__PURE__ */ jsx("div", { className: "style-grid", children: styles.map((s) => /* @__PURE__ */ jsx("div", { className: `style-chip ${project?.style === s.key ? "active" : ""}`, onClick: () => onUpdate({ style: s.key }), title: s.desc, children: s.label }, s.key)) })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
-      /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4CB} \u5206\u6790\u6A21\u5757" }) }),
+      /* @__PURE__ */ jsxs("div", { className: "card-head", children: [
+        /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4CB} \u5206\u6790\u6A21\u5757" }),
+        /* @__PURE__ */ jsxs("span", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+          "\u5DF2\u9009 ",
+          selectedModules.length
+        ] })
+      ] }),
       /* @__PURE__ */ jsx("div", { className: "module-grid", children: MODULES.map((m) => /* @__PURE__ */ jsxs("div", { className: `module-chip ${selectedModules.includes(m.id) ? "active" : ""}`, onClick: () => toggleModule(m.id), children: [
         /* @__PURE__ */ jsx("span", { className: "icon", children: m.icon }),
         m.name
@@ -370,61 +539,50 @@ function InputPanel({ project, onUpdate, onPreprocess, onAnalyze, onAnalyzeAll, 
       /* @__PURE__ */ jsx("div", { className: "gen-actions", children: /* @__PURE__ */ jsx(Button, { block: true, loading: preprocessing, onClick: doPreprocess, children: "\u{1F50D} \u9884\u5904\u7406" }) }),
       /* @__PURE__ */ jsx("div", { className: "gen-actions", children: /* @__PURE__ */ jsx(Button, { block: true, type: "primary", loading: generating, onClick: () => onAnalyzeAll(selectedModules), children: "\u{1F680} \u4E00\u952E\u5168\u90E8\u5206\u6790" }) }),
       /* @__PURE__ */ jsx("div", { className: "status-bar info", children: status }),
-      preprocessData?.global && /* @__PURE__ */ jsxs("div", { style: { marginTop: 10, fontSize: 12, color: "var(--ai-text-secondary)", background: "var(--ai-bg)", padding: 10, borderRadius: 8 }, children: [
-        /* @__PURE__ */ jsx("b", { style: { color: "var(--ai-text)" }, children: preprocessData.global.title || "\u672A\u547D\u540D" }),
-        " \xB7 ",
-        preprocessData.global.genre || "",
-        preprocessData.global.characters?.slice(0, 5).map((c, i) => /* @__PURE__ */ jsx(Tag, { size: "small", style: { marginLeft: 4 }, children: c.name }, i))
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxs(Modal, { open: importOpen, title: "\u5206\u7AE0\u5BFC\u5165", onClose: () => setImportOpen(false), onOk: doImportChapters, okText: "\u5BFC\u5165", cancelText: "\u53D6\u6D88", children: [
-      /* @__PURE__ */ jsx("p", { style: { fontSize: 12, color: "var(--ai-text-muted)", marginBottom: 8 }, children: '\u7C98\u8D34\u5168\u6587\uFF0C\u7CFB\u7EDF\u6309"\u7B2CX\u7AE0/Chapter N"\u81EA\u52A8\u5206\u7AE0\u3002' }),
-      /* @__PURE__ */ jsx("textarea", { value: importText, onChange: (e) => setImportText(e.target.value), style: { width: "100%", minHeight: 200, border: "2px solid var(--ai-border)", borderRadius: 8, padding: 10, fontSize: 13, fontFamily: "inherit" } })
+      hasChapters && /* @__PURE__ */ jsx("p", { style: { fontSize: 11, color: "var(--ai-primary)", marginTop: 6 }, children: "\u{1F4A1} \u5DF2\u542F\u7528\u7AE0\u8282\u7BA1\u7406\uFF0C\u5206\u6790\u65F6\u77E5\u8BC6\u5E93\u5C06\u8DE8\u7AE0\u7D2F\u79EF\uFF0C\u81EA\u52A8\u4FDD\u6301\u4EBA\u7269/\u573A\u666F\u4E00\u81F4\u3002" })
     ] })
   ] });
 }
-function onLoadExample() {
-  window.__loadExample?.();
-}
-function ResultPanel({ project, onUpdate, styles }) {
+function ResultPanel({ project, onUpdate, styles, onAnalyzeAll }) {
   const [tab, setTab] = useS("characters");
   const [streaming, setStreaming] = useS("");
   const [generating, setGenerating] = useS(false);
   const [progress, setProgress] = useS("");
+  const [progressPct, setProgressPct] = useS(0);
   const abortRef = useR(null);
   const results = project?.results || {};
   const characters = results.characters?.characters || [];
   const scenes = results.scenes?.scenes || [];
   const shots = results.storyboard?.shots || [];
   const analyzeOne = async (type) => {
-    if (!project?.content?.trim()) {
-      toast("\u8BF7\u5148\u8F93\u5165\u6E90\u6587\u672C", "error");
+    if (!project?.content?.trim() && !project?.chapters?.length) {
+      toast("\u8BF7\u5148\u8F93\u5165\u5185\u5BB9\u6216\u7AE0\u8282", "error");
       return;
     }
     setGenerating(true);
     setStreaming("");
     setProgress(`\u6B63\u5728\u751F\u6210${MODULES.find((m) => m.id === type)?.name}...`);
+    setProgressPct(10);
+    const content = project.chapters?.length ? project.chapters.map((c) => `## ${c.title}
+${c.content}`).join("\n\n") : project.content;
     const ac = new AbortController();
     abortRef.current = ac;
     try {
       let mdBuf = "";
-      await api.analyze({
-        type,
-        content: project.content,
-        visualStyle: project.style,
-        projectId: project.id,
-        characters,
-        scenes
-      }, (d) => {
+      await api.analyze({ type, content, visualStyle: project.style, projectId: project.id, characters, scenes }, (d) => {
+        if (d.status === "start") setProgressPct(30);
         if (d.status === "chunk") {
           mdBuf += d.content;
           setStreaming(mdBuf);
+          setProgressPct(70);
         }
         if (d.status === "done") {
           onUpdate({ results: { ...results, [type]: d.result } });
           setStreaming("");
           setProgress(`${MODULES.find((m) => m.id === type)?.name} \u5B8C\u6210`);
+          setProgressPct(100);
           toast("\u751F\u6210\u5B8C\u6210", "ok");
+          setTimeout(() => setProgressPct(0), 1500);
         }
         if (d.status === "error") {
           setProgress("\u9519\u8BEF: " + d.error);
@@ -439,55 +597,16 @@ function ResultPanel({ project, onUpdate, styles }) {
     }
     setGenerating(false);
   };
-  const analyzeAll = async (modules) => {
-    if (!project?.content?.trim()) {
-      toast("\u8BF7\u5148\u8F93\u5165\u6E90\u6587\u672C", "error");
-      return;
-    }
-    setGenerating(true);
-    setStreaming("");
-    setProgress("\u5F00\u59CB\u6279\u91CF\u5206\u6790...");
-    const ac = new AbortController();
-    abortRef.current = ac;
-    try {
-      await api.analyzeAll({
-        content: project.content,
-        visualStyle: project.style,
-        projectId: project.id,
-        modules
-      }, (d) => {
-        if (d.status === "module_start") setProgress(`\u6B63\u5728\u751F\u6210 ${MODULES.find((m) => m.id === d.type)?.name}...`);
-        if (d.status === "module_chunk") setStreaming((prev) => prev + d.content);
-        if (d.status === "module_done") {
-          const newResults = { ...results, [d.type]: d.result };
-          onUpdate({ results: newResults });
-          setStreaming("");
-        }
-        if (d.status === "module_error") setProgress(`\u6A21\u5757 ${d.type} \u5931\u8D25: ${d.error}`);
-        if (d.status === "all_done") {
-          setProgress("\u5168\u90E8\u5B8C\u6210");
-          toast("\u6279\u91CF\u5206\u6790\u5B8C\u6210", "ok");
-        }
-      }, ac.signal);
-    } catch (e) {
-      if (e.name !== "AbortError") {
-        setProgress("\u5931\u8D25: " + e.message);
-        toast("\u751F\u6210\u5931\u8D25", "error");
-      }
-    }
-    setGenerating(false);
-  };
   useE(() => {
-    window.__analyzeAll = analyzeAll;
     window.__analyzeOne = analyzeOne;
-  });
+  }, [project, results, characters, scenes]);
   const tabs = [
     { id: "characters", name: "\u{1F3AD} \u89D2\u8272", count: characters.length },
     { id: "scenes", name: "\u{1F3DE}\uFE0F \u573A\u666F", count: scenes.length },
     { id: "storyboard", name: "\u{1F3AC} \u5206\u955C", count: shots.length },
     ...MODULES.filter((m) => m.type === "md").map((m) => ({ id: m.id, name: `${m.icon} ${m.name}` })),
     { id: "knowledge", name: "\u{1F4DA} \u77E5\u8BC6\u5E93" },
-    { id: "media", name: "\u{1F5BC}\uFE0F \u5A92\u4F53\u751F\u6210" },
+    { id: "media", name: "\u{1F5BC}\uFE0F \u5A92\u4F53" },
     { id: "consistency", name: "\u{1F50D} \u4E00\u81F4\u6027" }
   ];
   return /* @__PURE__ */ jsxs("div", { className: "result-panel", children: [
@@ -497,28 +616,35 @@ function ResultPanel({ project, onUpdate, styles }) {
         t.count !== void 0 && /* @__PURE__ */ jsx("span", { className: "count", children: t.count })
       ] }, t.id)),
       /* @__PURE__ */ jsxs("div", { style: { marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }, children: [
-        tab !== "media" && tab !== "knowledge" && tab !== "consistency" && /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: generating, onClick: () => analyzeOne(tab), children: generating ? "\u751F\u6210\u4E2D" : `\u751F\u6210${MODULES.find((m) => m.id === tab)?.name || ""}` }),
+        tab !== "media" && tab !== "knowledge" && tab !== "consistency" && /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: generating, onClick: () => analyzeOne(tab), children: generating ? "\u751F\u6210\u4E2D" : "\u751F\u6210" }),
         /* @__PURE__ */ jsx("a", { href: api.exportMd(project?.id), download: true, children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u5BFC\u51FAMD" }) })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "result-content", children: [
       (generating || streaming) && /* @__PURE__ */ jsxs("div", { style: { marginBottom: 12, padding: 10, background: "var(--ai-primary-bg)", borderRadius: 8, fontSize: 13 }, children: [
         progress,
+        progressPct > 0 && /* @__PURE__ */ jsx("div", { className: "progress-line", children: /* @__PURE__ */ jsx("div", { className: "fill", style: { width: progressPct + "%" } }) }),
         streaming && /* @__PURE__ */ jsx("div", { className: "md-body", style: { marginTop: 8, maxHeight: 300, overflow: "auto" }, dangerouslySetInnerHTML: { __html: renderMd(streaming) } })
       ] }),
       tab === "characters" && /* @__PURE__ */ jsx(CharactersView, { characters, onUpdate: (chars) => onUpdate({ results: { ...results, characters: { characters: chars } } }) }),
       tab === "scenes" && /* @__PURE__ */ jsx(ScenesView, { scenes, onUpdate: (sc) => onUpdate({ results: { ...results, scenes: { scenes: sc } } }) }),
       tab === "storyboard" && /* @__PURE__ */ jsx(ShotView, { shots, characters, scenes, onUpdate: (sh) => onUpdate({ results: { ...results, storyboard: { shots: sh } } }) }),
-      MODULES.filter((m) => m.type === "md").map((m) => tab === m.id && /* @__PURE__ */ jsx(MdView, { content: results[m.id], emptyTip: `\u70B9\u51FB\u53F3\u4E0A\u65B9"\u751F\u6210${m.name}"\u5F00\u59CB` }, m.id)),
+      MODULES.filter((m) => m.type === "md").map((m) => tab === m.id && /* @__PURE__ */ jsx(MdView, { content: results[m.id], emptyTip: `\u70B9\u51FB\u53F3\u4E0A\u65B9"\u751F\u6210"\u5F00\u59CB` }, m.id)),
       tab === "knowledge" && /* @__PURE__ */ jsx(KnowledgeView, { project, onUpdate }),
-      tab === "media" && /* @__PURE__ */ jsx(MediaGen, { styles, project }),
+      tab === "media" && /* @__PURE__ */ jsx(MediaGen, { styles, project, characters, scenes }),
       tab === "consistency" && /* @__PURE__ */ jsx(ConsistencyView, { project })
     ] })
   ] });
 }
 function CharactersView({ characters, onUpdate }) {
-  if (!characters.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u89D2\u8272\u8BBE\u5B9A\u540E\u5C06\u663E\u793A\u5728\u6B64" });
-  const fields = [["role", "\u53D9\u4E8B\u529F\u80FD"], ["gender", "\u6027\u522B"], ["age", "\u5E74\u9F84"], ["appearance", "\u5916\u8C8C"], ["personality", "\u6027\u683C"], ["costume", "\u670D\u88C5\u9053\u5177"], ["arc", "\u89D2\u8272\u5F27\u5149"], ["imagePromptZh", "\u5F62\u8C61\u56FEPrompt(\u4E2D)"], ["imagePromptEn", "\u5F62\u8C61\u56FEPrompt(\u82F1)"]];
+  if (!characters.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u89D2\u8272\u8BBE\u5B9A\u540E\u5C06\u663E\u793A\uFF0C\u542B\u9762\u90E8/\u6B63\u9762/\u4FA7\u9762/\u80CC\u97624\u89C6\u56FEPrompt" });
+  const baseFields = [["role", "\u53D9\u4E8B\u529F\u80FD"], ["gender", "\u6027\u522B"], ["age", "\u5E74\u9F84"], ["appearance", "\u5916\u8C8C"], ["personality", "\u6027\u683C"], ["costume", "\u670D\u88C5\u9053\u5177"], ["arc", "\u89D2\u8272\u5F27\u5149"]];
+  const viewFields = [
+    ["facePromptZh", "\u9762\u90E8\u7279\u5199(\u4E2D)", "facePromptEn", "\u9762\u90E8\u7279\u5199(EN)"],
+    ["frontPromptZh", "\u6B63\u9762\u5168\u8EAB(\u4E2D)", "frontPromptEn", "\u6B63\u9762\u5168\u8EAB(EN)"],
+    ["sidePromptZh", "\u4FA7\u9762\u5168\u8EAB(\u4E2D)", "sidePromptEn", "\u4FA7\u9762\u5168\u8EAB(EN)"],
+    ["backPromptZh", "\u80CC\u9762\u5168\u8EAB(\u4E2D)", "backPromptEn", "\u80CC\u9762\u5168\u8EAB(EN)"]
+  ];
   const updateField = (i, k, v) => {
     const c = [...characters];
     c[i] = { ...c[i], [k]: v };
@@ -530,10 +656,23 @@ function CharactersView({ characters, onUpdate }) {
         /* @__PURE__ */ jsx("input", { className: "item-name", value: c.name, onChange: (e) => updateField(i, "name", e.target.value) }),
         /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => onUpdate(characters.filter((_, x) => x !== i)), children: "\u5220" })
       ] }),
-      fields.map(([k, label]) => /* @__PURE__ */ jsxs("div", { className: "field", children: [
+      baseFields.map(([k, label]) => /* @__PURE__ */ jsxs("div", { className: "field", children: [
         /* @__PURE__ */ jsx("label", { children: label }),
-        k.startsWith("imagePrompt") ? /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c[k] || "", onChange: (e) => updateField(i, k, e.target.value) }) : /* @__PURE__ */ jsx("input", { value: c[k] || "", onChange: (e) => updateField(i, k, e.target.value) })
-      ] }, k))
+        /* @__PURE__ */ jsx("input", { value: c[k] || "", onChange: (e) => updateField(i, k, e.target.value) })
+      ] }, k)),
+      /* @__PURE__ */ jsxs("div", { className: "view-prompts", style: { borderTop: "1px dashed var(--ai-border)", paddingTop: 8, marginTop: 8 }, children: [
+        /* @__PURE__ */ jsx("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--ai-text)", marginBottom: 6 }, children: "\u{1F4D0} 4\u89C6\u56FE\u751F\u56FE Prompt" }),
+        viewFields.map(([kZh, lZh, kEn, lEn]) => /* @__PURE__ */ jsxs("div", { className: "view-row", children: [
+          /* @__PURE__ */ jsxs("div", { className: "field", children: [
+            /* @__PURE__ */ jsx("label", { children: lZh }),
+            /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c[kZh] || "", onChange: (e) => updateField(i, kZh, e.target.value) })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "field", children: [
+            /* @__PURE__ */ jsx("label", { children: lEn }),
+            /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c[kEn] || "", onChange: (e) => updateField(i, kEn, e.target.value) })
+          ] })
+        ] }, kZh))
+      ] })
     ] }, i)),
     /* @__PURE__ */ jsx(Button, { onClick: () => onUpdate([...characters, { name: "\u65B0\u89D2\u8272" }]), children: "+ \u65B0\u589E\u89D2\u8272" })
   ] });
@@ -564,17 +703,24 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
   const [view, setView] = useS("table");
   const [filterEp, setFilterEp] = useS("");
   const [filterScene, setFilterScene] = useS("");
-  if (!shots.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u8BBE\u5B9A\u540E\uFF0C\u70B9\u51FB\u53F3\u4E0A\u65B9\u751F\u6210\u5206\u955C\u811A\u672C" });
+  if (!shots.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u5148\u751F\u6210\u89D2\u8272\u4E0E\u573A\u666F\u8BBE\u5B9A\uFF0C\u518D\u70B9\u51FB\u53F3\u4E0A\u65B9\u751F\u6210\u6309\u94AE" });
   const eps = [...new Set(shots.map((s) => s.episode))];
   let filtered = shots;
   if (filterEp) filtered = filtered.filter((s) => s.episode == filterEp);
   if (filterScene) filtered = filtered.filter((s) => s.sceneName === filterScene);
   const charName = (names) => (names || []).join("\u3001");
-  const update = (i, k, v) => {
+  const update = (idx, k, v) => {
     const sh = [...shots];
-    const idx = shots.indexOf(filtered[i]);
-    sh[idx] = { ...sh[idx], [k]: v };
+    const i = shots.indexOf(filtered[idx]);
+    sh[i] = { ...sh[i], [k]: v };
     onUpdate(sh);
+  };
+  const moveShot = (idx, dir) => {
+    const i = shots.indexOf(filtered[idx]);
+    const j = i + dir;
+    if (j < 0 || j >= shots.length) return;
+    [shots[i], shots[j]] = [shots[j], shots[i]];
+    onUpdate([...shots]);
   };
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsxs("div", { className: "shot-toolbar", children: [
@@ -609,23 +755,33 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
         /* @__PURE__ */ jsx("th", { children: "\u89D2\u8272" }),
         /* @__PURE__ */ jsx("th", { children: "\u573A\u666F" }),
         /* @__PURE__ */ jsx("th", { className: "prompt-cell", children: "Prompt(\u4E2D)" }),
-        /* @__PURE__ */ jsx("th", { className: "prompt-cell", children: "Prompt(\u82F1)" })
+        /* @__PURE__ */ jsx("th", { className: "prompt-cell", children: "Prompt(\u82F1)" }),
+        /* @__PURE__ */ jsx("th", {})
       ] }) }),
-      /* @__PURE__ */ jsx("tbody", { children: filtered.map((s, i) => /* @__PURE__ */ jsxs("tr", { children: [
+      /* @__PURE__ */ jsx("tbody", { children: filtered.map((s, idx) => /* @__PURE__ */ jsxs("tr", { children: [
         /* @__PURE__ */ jsx("td", { className: "num", children: s.episode }),
         /* @__PURE__ */ jsx("td", { className: "num", children: s.sceneNo }),
         /* @__PURE__ */ jsx("td", { className: "num", children: s.shotNo }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(i, "shotType", e.target.textContent), children: s.shotType }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(i, "visual", e.target.textContent), children: s.visual }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(i, "dialogue", e.target.textContent), children: s.dialogue }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(i, "action", e.target.textContent), children: s.action }) }),
-        /* @__PURE__ */ jsx("td", { className: "num", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(i, "duration", parseInt(e.target.textContent) || 0), children: s.duration }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "shotType", e.target.textContent), children: s.shotType }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "visual", e.target.textContent), children: s.visual }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "dialogue", e.target.textContent), children: s.dialogue }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "action", e.target.textContent), children: s.action }) }),
+        /* @__PURE__ */ jsx("td", { className: "num", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "duration", parseInt(e.target.textContent) || 0), children: s.duration }) }),
         /* @__PURE__ */ jsx("td", { children: charName(s.characterNames) }),
         /* @__PURE__ */ jsx("td", { children: s.sceneName }),
-        /* @__PURE__ */ jsx("td", { className: "prompt-cell", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(i, "promptZh", e.target.textContent), children: s.promptZh }) }),
-        /* @__PURE__ */ jsx("td", { className: "prompt-cell", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(i, "promptEn", e.target.textContent), children: s.promptEn }) })
-      ] }, i)) })
-    ] }) : /* @__PURE__ */ jsx("div", { className: "shot-grid", children: filtered.map((s, i) => /* @__PURE__ */ jsxs("div", { className: "shot-tile", children: [
+        /* @__PURE__ */ jsx("td", { className: "prompt-cell", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "promptZh", e.target.textContent), children: s.promptZh }) }),
+        /* @__PURE__ */ jsx("td", { className: "prompt-cell", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "promptEn", e.target.textContent), children: s.promptEn }) }),
+        /* @__PURE__ */ jsxs("td", { children: [
+          /* @__PURE__ */ jsx("button", { className: "btn sm ghost", title: "\u590D\u5236EN Prompt", onClick: () => {
+            navigator.clipboard?.writeText(s.promptEn);
+            toast("\u5DF2\u590D\u5236EN", "ok");
+          }, children: "\u590D\u5236" }),
+          /* @__PURE__ */ jsx("button", { className: "btn sm ghost", onClick: () => moveShot(idx, -1), children: "\u2191" }),
+          /* @__PURE__ */ jsx("button", { className: "btn sm ghost", onClick: () => moveShot(idx, 1), children: "\u2193" }),
+          /* @__PURE__ */ jsx("button", { className: "btn sm ghost danger", onClick: () => onUpdate(shots.filter((_, x) => x !== shots.indexOf(s))), children: "\u5220" })
+        ] })
+      ] }, idx)) })
+    ] }) : /* @__PURE__ */ jsx("div", { className: "shot-grid", children: filtered.map((s, idx) => /* @__PURE__ */ jsxs("div", { className: "shot-tile", children: [
       /* @__PURE__ */ jsxs("div", { className: "tile-head", children: [
         /* @__PURE__ */ jsxs("span", { children: [
           "\u7B2C",
@@ -661,11 +817,13 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
       /* @__PURE__ */ jsxs("div", { className: "tile-actions", children: [
         /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => {
           navigator.clipboard?.writeText(s.promptEn);
-          toast("\u5DF2\u590D\u5236", "ok");
+          toast("\u5DF2\u590D\u5236EN", "ok");
         }, children: "\u590D\u5236EN" }),
+        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => moveShot(idx, -1), children: "\u2191" }),
+        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => moveShot(idx, 1), children: "\u2193" }),
         /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => onUpdate(shots.filter((_, x) => x !== shots.indexOf(s))), children: "\u5220" })
       ] })
-    ] }, i)) })
+    ] }, idx)) })
   ] });
 }
 function MdView({ content, emptyTip }) {
@@ -678,15 +836,23 @@ function KnowledgeView({ project, onUpdate }) {
   const tabs = [["characters", "\u89D2\u8272"], ["scenes", "\u573A\u666F"], ["props", "\u9053\u5177"], ["timeline", "\u65F6\u95F4\u7EBF"]];
   const list = kb[sub] || [];
   return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsx("div", { style: { background: "var(--ai-primary-bg)", borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 12, color: "var(--ai-text-body)" }, children: "\u{1F4A1} \u77E5\u8BC6\u5E93\u5728\u6BCF\u6B21\u7AE0\u8282\u5206\u6790\u65F6\u81EA\u52A8\u63D0\u53D6\u5E76\u8DE8\u7AE0\u7D2F\u79EF\u3002\u540E\u7EED\u5206\u6790\uFF08\u89D2\u8272/\u573A\u666F/\u5206\u955C\u7B49\uFF09\u4F1A\u6CE8\u5165\u77E5\u8BC6\u5E93\u4E0A\u4E0B\u6587\uFF0C\u786E\u4FDD\u4EBA\u7269\u5F62\u8C61\u3001\u6027\u683C\u3001\u573A\u666F\u63CF\u8FF0\u8DE8\u7AE0\u4E00\u81F4\uFF08\u907F\u514DOCC\uFF09\u3002" }),
     /* @__PURE__ */ jsx("div", { className: "kb-tabs", children: tabs.map(([k, label]) => /* @__PURE__ */ jsxs("div", { className: `kb-tab ${sub === k ? "active" : ""}`, onClick: () => setSub(k), children: [
       label,
       " (",
       (kb[k] || []).length,
       ")"
     ] }, k)) }),
-    list.length === 0 ? /* @__PURE__ */ jsx(Empty, { tip: "\u5206\u6790\u7AE0\u8282\u540E\u5C06\u81EA\u52A8\u63D0\u53D6\u77E5\u8BC6\u5E93" }) : list.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "kb-item", children: [
-      /* @__PURE__ */ jsx("div", { className: "kb-name", children: item.name || item.chapter || "\u672A\u547D\u540D" }),
-      Object.entries(item).filter(([k]) => !["id", "name", "chapter"].includes(k)).map(([k, v]) => /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, marginBottom: 3 }, children: [
+    list.length === 0 ? /* @__PURE__ */ jsx(Empty, { tip: "\u5206\u6790\u7AE0\u8282\u540E\u5C06\u81EA\u52A8\u63D0\u53D6\u77E5\u8BC6\u5E93\uFF1B\u6216\u5206\u6790\u89D2\u8272\u8BBE\u5B9A\u540E\u81EA\u52A8\u79EF\u7D2F" }) : list.map((item, i) => /* @__PURE__ */ jsxs("div", { className: "kb-item", children: [
+      /* @__PURE__ */ jsxs("div", { className: "kb-name", children: [
+        item.name || item.chapter || "\u672A\u547D\u540D",
+        " ",
+        item.sourceChapter && /* @__PURE__ */ jsxs(Tag, { size: "small", color: "app-blue", children: [
+          "\u6765\u6E90:",
+          item.sourceChapter
+        ] })
+      ] }),
+      Object.entries(item).filter(([k]) => !["id", "name", "chapter", "sourceChapter", "sourceChapterId"].includes(k)).map(([k, v]) => /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, marginBottom: 3 }, children: [
         /* @__PURE__ */ jsxs("b", { style: { color: "var(--ai-text-secondary)" }, children: [
           k,
           "\uFF1A"
@@ -696,16 +862,15 @@ function KnowledgeView({ project, onUpdate }) {
     ] }, i))
   ] });
 }
-function MediaGen({ styles, project }) {
-  const [prompt2, setPrompt] = useS("");
+function MediaGen({ styles, project, characters, scenes }) {
+  const [prompt, setPrompt] = useS("");
   const [negPrompt, setNegPrompt] = useS("");
   const [size, setSize] = useS("1024x1024");
   const [gen, setGen] = useS(false);
   const [imgUrl, setImgUrl] = useS(null);
   const [err, setErr] = useS("");
-  const [media, setMedia] = useS(project?.mediaItems || []);
   const generate = async () => {
-    if (!prompt2) {
+    if (!prompt) {
       toast("\u8BF7\u8F93\u5165Prompt", "error");
       return;
     }
@@ -713,7 +878,7 @@ function MediaGen({ styles, project }) {
     setErr("");
     setImgUrl(null);
     try {
-      const r = await api.genImage(prompt2, negPrompt, size, project?.style);
+      const r = await api.genImage(prompt, negPrompt, size, project?.style);
       if (r.ok) {
         setImgUrl(r.url);
         toast("\u751F\u6210\u6210\u529F", "ok");
@@ -727,12 +892,16 @@ function MediaGen({ styles, project }) {
     }
     setGen(false);
   };
+  const useCharPrompt = (p, label) => {
+    setPrompt(p || "");
+    toast("\u5DF2\u586B\u5165" + label, "ok");
+  };
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 12 }, children: [
       /* @__PURE__ */ jsx("div", { className: "card-title", style: { marginBottom: 10 }, children: "\u{1F5BC}\uFE0F AI \u751F\u56FE" }),
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
-        /* @__PURE__ */ jsx("label", { children: "Prompt\uFF08\u81EA\u52A8\u8FFD\u52A0\u5F53\u524D\u89C6\u89C9\u98CE\u683C\uFF09" }),
-        /* @__PURE__ */ jsx("textarea", { value: prompt2, onChange: (e) => setPrompt(e.target.value), placeholder: "\u63CF\u8FF0\u8981\u751F\u6210\u7684\u753B\u9762...", style: { minHeight: 80 } })
+        /* @__PURE__ */ jsx("label", { children: "Prompt\uFF08\u81EA\u52A8\u8FFD\u52A0\u5F53\u524D\u89C6\u89C9\u98CE\u683C\u540E\u7F00\uFF09" }),
+        /* @__PURE__ */ jsx("textarea", { value: prompt, onChange: (e) => setPrompt(e.target.value), placeholder: "\u63CF\u8FF0\u8981\u751F\u6210\u7684\u753B\u9762...", style: { minHeight: 80 } })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
         /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
@@ -752,20 +921,33 @@ function MediaGen({ styles, project }) {
       err && /* @__PURE__ */ jsx("div", { className: "status-bar error", children: err }),
       imgUrl && /* @__PURE__ */ jsx("img", { className: "img-preview", src: imgUrl, alt: "\u751F\u6210\u7ED3\u679C" })
     ] }),
-    /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u5FEB\u901F\u751F\u6210\uFF08\u4ECE\u89D2\u8272/\u573A\u666F\uFF09" }),
-    /* @__PURE__ */ jsx("p", { style: { fontSize: 12, color: "var(--ai-text-muted)" }, children: "\u70B9\u51FB\u89D2\u8272\u6216\u573A\u666F\u7684 Prompt \u53EF\u5FEB\u901F\u586B\u5165\u4E0A\u65B9\u751F\u6210\u6846\u3002" })
+    /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u26A1 \u5FEB\u901F\u586B\u5165\uFF08\u70B9\u51FB\u590D\u5236\u89D2\u82724\u89C6\u56FE/\u573A\u666FPrompt\u5230\u4E0A\u65B9\uFF09" }),
+    characters.length === 0 && scenes.length === 0 ? /* @__PURE__ */ jsx(Empty, { tip: "\u5148\u751F\u6210\u89D2\u8272/\u573A\u666F\u8BBE\u5B9A" }) : /* @__PURE__ */ jsxs("div", { className: "grid-cards", style: { marginTop: 10 }, children: [
+      characters.map((c, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
+        /* @__PURE__ */ jsx("div", { className: "kb-name", children: c.name }),
+        /* @__PURE__ */ jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }, children: [["facePromptEn", "\u9762\u90E8"], ["frontPromptEn", "\u6B63\u9762"], ["sidePromptEn", "\u4FA7\u9762"], ["backPromptEn", "\u80CC\u9762"]].map(([k, l]) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => useCharPrompt(c[k], c.name + l), disabled: !c[k], children: l }, k)) })
+      ] }, "c" + i)),
+      scenes.map((s, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
+        /* @__PURE__ */ jsx("div", { className: "kb-name", children: s.name }),
+        /* @__PURE__ */ jsx(Button, { size: "small", style: { marginTop: 6 }, onClick: () => useCharPrompt(s.imagePromptEn, s.name), disabled: !s.imagePromptEn, children: "\u573A\u666F\u56FE" })
+      ] }, "s" + i))
+    ] })
   ] });
 }
 function ConsistencyView({ project }) {
   const [report, setReport] = useS("");
   const [running, setRunning] = useS(false);
   const run = async () => {
+    if (!project.results || Object.keys(project.results).length === 0) {
+      toast("\u8BF7\u5148\u751F\u6210\u5206\u6790\u7ED3\u679C", "error");
+      return;
+    }
     setRunning(true);
     setReport("");
     try {
       await api.checkConsistency(project.results, project.knowledge, (d) => {
-        if (d.content) setReport((prev) => prev + d.content);
-        if (d.error) setReport((prev) => prev + "\n\u9519\u8BEF: " + d.error);
+        if (d.content) setReport((p) => p + d.content);
+        if (d.error) setReport((p) => p + "\n\u9519\u8BEF: " + d.error);
       });
       toast("\u68C0\u67E5\u5B8C\u6210", "ok");
     } catch (e) {
@@ -775,7 +957,7 @@ function ConsistencyView({ project }) {
   };
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsx(Button, { type: "primary", loading: running, onClick: run, style: { marginBottom: 12 }, children: "\u{1F50D} \u68C0\u67E5\u4E00\u81F4\u6027" }),
-    report ? /* @__PURE__ */ jsx("div", { className: "md-body", dangerouslySetInnerHTML: { __html: renderMd(report) } }) : /* @__PURE__ */ jsx(Empty, { tip: "\u70B9\u51FB\u4E0A\u65B9\u6309\u94AE\u68C0\u67E5\u5404\u6A21\u5757\u95F4\u4E00\u81F4\u6027" })
+    report ? /* @__PURE__ */ jsx("div", { className: "md-body", dangerouslySetInnerHTML: { __html: renderMd(report) } }) : /* @__PURE__ */ jsx(Empty, { tip: "\u70B9\u51FB\u4E0A\u65B9\u6309\u94AE\u68C0\u67E5\u5404\u6A21\u5757\u95F4\u89D2\u8272/\u573A\u666F/\u65F6\u95F4\u7EBF\u4E00\u81F4\u6027" })
   ] });
 }
 function Empty({ tip }) {
@@ -791,10 +973,15 @@ function App() {
   const [project, setProject] = useS(null);
   const [styles, setStyles] = useS([]);
   const [settingsOpen, setSettingsOpen] = useS(false);
+  const [newOpen, setNewOpen] = useS(false);
+  const [collapsed, setCollapsed] = useS(false);
   const [cfg, setCfg] = useS(null);
   const refreshProjects = useCB(async () => {
-    const r = await api.listProjects();
-    setProjects(r.items || []);
+    try {
+      const r = await api.listProjects();
+      setProjects(r.items || []);
+    } catch {
+    }
   }, []);
   useE(() => {
     refreshProjects();
@@ -804,7 +991,7 @@ function App() {
     });
   }, []);
   useE(() => {
-    window.__loadExample = loadExample;
+    window.__analyzeAll = (mods) => window.__analyzeAllImpl?.(mods);
   });
   const loadProject = async (id) => {
     if (!id) {
@@ -812,8 +999,7 @@ function App() {
       return;
     }
     try {
-      const p = await api.getProject(id);
-      setProject(p);
+      setProject(await api.getProject(id));
       setCurrentId(id);
     } catch (e) {
       toast(e.message, "error");
@@ -829,19 +1015,19 @@ function App() {
         await api.updateProject(project.id, patch);
         refreshProjects();
       } catch (e) {
-        console.warn("save failed", e);
+        console.warn("save", e);
       }
     }, 600);
   }, [project]);
-  const newProject = async () => {
-    const name = prompt("\u9879\u76EE\u540D\u79F0", "\u672A\u547D\u540D\u9879\u76EE");
-    if (!name) return;
-    const p = await api.createProject(name, "cinematic");
+  const createProject = async (name, style) => {
+    const p = await api.createProject(name, style);
     await refreshProjects();
+    setNewOpen(false);
     loadProject(p.id);
+    toast("\u9879\u76EE\u5DF2\u521B\u5EFA", "ok");
   };
   const deleteProject = async (id) => {
-    if (!confirm("\u786E\u8BA4\u5220\u9664\uFF1F")) return;
+    if (!confirm("\u786E\u8BA4\u5220\u9664\u8BE5\u9879\u76EE\uFF1F")) return;
     await api.deleteProject(id);
     await refreshProjects();
     if (currentId === id) {
@@ -869,24 +1055,25 @@ function App() {
     }
   };
   const hasProvider = cfg?.providers?.some((p) => p.apiKey && p.apiKey !== "");
+  const hasChapters = (project?.chapters?.length || 0) > 0;
   return /* @__PURE__ */ jsxs("div", { className: "app-layout", children: [
     /* @__PURE__ */ jsxs("header", { className: "app-header", children: [
       /* @__PURE__ */ jsx("div", { className: "header-left", children: /* @__PURE__ */ jsxs("div", { className: "logo", children: [
         /* @__PURE__ */ jsx("span", { className: "logo-icon", children: "\u{1F3AC}" }),
         /* @__PURE__ */ jsx("span", { className: "logo-text", children: "\u77ED\u5267\u811A\u672C\u5DE5\u574A" }),
-        /* @__PURE__ */ jsx("span", { className: "logo-badge", children: "v3.0" })
+        /* @__PURE__ */ jsx("span", { className: "logo-badge", children: "v3.1" })
       ] }) }),
       /* @__PURE__ */ jsxs("div", { className: "header-right", children: [
         /* @__PURE__ */ jsxs("div", { className: "model-info", onClick: () => setSettingsOpen(true), children: [
           /* @__PURE__ */ jsx("span", { className: `model-dot ${hasProvider ? "" : "off"}` }),
-          /* @__PURE__ */ jsx("span", { children: hasProvider ? cfg.providers.find((p) => p.id === cfg.activeProvider)?.name || "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E" }),
+          /* @__PURE__ */ jsx("span", { children: hasProvider ? cfg.providers.find((p) => p.id === cfg.activeProvider)?.name || "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E\u6A21\u578B" }),
           /* @__PURE__ */ jsx("span", { children: "\u2699\uFE0F" })
         ] }),
         /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setSettingsOpen(true), children: "\u8BBE\u7F6E" })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "app-body", children: [
-      /* @__PURE__ */ jsx(Sidebar, { projects, currentId, onSelect: loadProject, onNew: newProject, onDelete: deleteProject, onImport: importProject }),
+      /* @__PURE__ */ jsx(Sidebar, { projects, currentId, onSelect: loadProject, onNew: () => setNewOpen(true), onDelete: deleteProject, onImport: importProject, collapsed, onToggle: () => setCollapsed((c) => !c) }),
       project ? /* @__PURE__ */ jsxs("div", { className: "main-area", children: [
         /* @__PURE__ */ jsx(
           InputPanel,
@@ -895,24 +1082,50 @@ function App() {
             onUpdate: updateProject,
             styles,
             generating: false,
-            onAnalyzeAll: (mods) => window.__analyzeAll?.(mods)
+            hasChapters,
+            onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods)
           }
         ),
-        /* @__PURE__ */ jsx(ResultPanel, { project, onUpdate: updateProject, styles })
+        /* @__PURE__ */ jsx(ResultPanel, { project, onUpdate: updateProject, styles, onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods) })
       ] }) : /* @__PURE__ */ jsx("div", { className: "main-area", style: { alignItems: "center", justifyContent: "center", color: "var(--ai-text-muted)" }, children: /* @__PURE__ */ jsxs("div", { style: { textAlign: "center" }, children: [
         /* @__PURE__ */ jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\u{1F3AC}" }),
         /* @__PURE__ */ jsx("div", { style: { fontSize: 18, fontWeight: 700, color: "var(--ai-text)", marginBottom: 8 }, children: "\u77ED\u5267\u811A\u672C\u5DE5\u574A" }),
         /* @__PURE__ */ jsx("div", { style: { marginBottom: 16 }, children: "\u5C0F\u8BF4 / \u6545\u4E8B / \u5267\u672C \u2192 AI \u89C6\u9891\u5206\u955C\u811A\u672C\u4E0E\u8BBE\u5B9A" }),
-        /* @__PURE__ */ jsx(Button, { type: "primary", onClick: newProject, children: "+ \u65B0\u5EFA\u9879\u76EE" }),
+        /* @__PURE__ */ jsx(Button, { type: "primary", onClick: () => setNewOpen(true), children: "+ \u65B0\u5EFA\u9879\u76EE" }),
         /* @__PURE__ */ jsx("span", { style: { margin: "0 8px" } }),
         /* @__PURE__ */ jsx(Button, { onClick: loadExample, children: "\u52A0\u8F7D\u793A\u4F8B" })
       ] }) })
     ] }),
-    /* @__PURE__ */ jsx(SettingsModal, { open: settingsOpen, onClose: () => {
-      setSettingsOpen(false);
-      api.getConfig().then(setCfg);
-    } })
+    /* @__PURE__ */ jsx(NewProjectModal, { open: newOpen, onClose: () => setNewOpen(false), onCreate: createProject }),
+    /* @__PURE__ */ jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), onSaved: () => api.getConfig().then(setCfg) }),
+    /* @__PURE__ */ jsx(ResultPanelAnalyzeBridge, { project, results: project?.results || {}, characters: project?.results?.characters?.characters || [], scenes: project?.results?.scenes?.scenes || [], onUpdate: updateProject })
   ] });
+}
+function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate }) {
+  useE(() => {
+    window.__analyzeAllImpl = async (modules) => {
+      if (!project) return;
+      if (!project.content?.trim() && !project.chapters?.length) {
+        toast("\u8BF7\u5148\u8F93\u5165\u5185\u5BB9\u6216\u7AE0\u8282", "error");
+        return;
+      }
+      const content = project.chapters?.length ? project.chapters.map((c) => `## ${c.title}
+${c.content}`).join("\n\n") : project.content;
+      toast("\u5F00\u59CB\u6279\u91CF\u5206\u6790", "info");
+      try {
+        await api.analyzeAll({ content, visualStyle: project.style, projectId: project.id, modules }, (d) => {
+          if (d.status === "module_start") toast(`\u751F\u6210 ${MODULES.find((m) => m.id === d.type)?.name}...`, "info");
+          if (d.status === "module_done") {
+            onUpdate({ results: { ...results, [d.type]: d.result } });
+          }
+          if (d.status === "all_done") toast("\u6279\u91CF\u5206\u6790\u5B8C\u6210", "ok");
+        });
+      } catch (e) {
+        toast("\u5206\u6790\u5931\u8D25: " + e.message, "error");
+      }
+    };
+  });
+  return null;
 }
 var root = createRoot(document.getElementById("root"));
 root.render(/* @__PURE__ */ jsx(App, {}));
