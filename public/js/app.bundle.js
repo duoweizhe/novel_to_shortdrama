@@ -654,7 +654,7 @@ function renderMd(md) {
 }
 function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, collapsed, onToggle, mobileOpen, onCloseMobile }) {
   const fileRef = useR(null);
-  if (collapsed) {
+  if (collapsed && !mobileOpen) {
     return /* @__PURE__ */ jsxs("aside", { className: "sidebar collapsed", children: [
       /* @__PURE__ */ jsx("div", { className: "sidebar-head", style: { justifyContent: "center" }, children: /* @__PURE__ */ jsx(Button, { size: "small", onClick: onToggle, children: "\xBB" }) }),
       /* @__PURE__ */ jsxs("div", { className: "sidebar-list", style: { textAlign: "center", padding: "8px 4px" }, children: [

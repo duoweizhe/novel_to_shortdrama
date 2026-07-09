@@ -29,7 +29,7 @@ function renderMd(md) { if (!md) return ''; try { return marked.parse(md); } cat
 // ============ Sidebar (可收起) ============
 function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, collapsed, onToggle, mobileOpen, onCloseMobile }) {
   const fileRef = useR(null);
-  if (collapsed) {
+  if (collapsed && !mobileOpen) {
     return (
       <aside className="sidebar collapsed">
         <div className="sidebar-head" style={{ justifyContent: 'center' }}>
