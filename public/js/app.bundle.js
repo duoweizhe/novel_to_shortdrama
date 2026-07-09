@@ -667,7 +667,7 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, col
     /* @__PURE__ */ jsxs("div", { className: "sidebar-head", children: [
       /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: onNew, children: "+ \u65B0\u5EFA" }),
       /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => fileRef.current?.click(), children: "\u5BFC\u5165" }),
-      /* @__PURE__ */ jsx(Button, { size: "small", ghost: true, onClick: onToggle, style: { marginLeft: "auto" }, children: "\xAB" }),
+      /* @__PURE__ */ jsx(Button, { size: "small", ghost: true, onClick: onToggle, className: "sidebar-collapse-desktop", style: { marginLeft: "auto" }, children: "\xAB" }),
       /* @__PURE__ */ jsx("button", { className: "sidebar-close-mobile", onClick: onCloseMobile, children: "\u2715" }),
       /* @__PURE__ */ jsx("input", { ref: fileRef, type: "file", accept: ".json", hidden: true, onChange: async (e) => {
         const f = e.target.files[0];
@@ -681,7 +681,12 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, col
       } })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "sidebar-list", children: [
-      projects.length === 0 && /* @__PURE__ */ jsx("div", { style: { padding: 16, color: "var(--ai-text-muted)", fontSize: 12, textAlign: "center" }, children: "\u6682\u65E0\u9879\u76EE" }),
+      /* @__PURE__ */ jsx("div", { className: "sidebar-list-title", children: "\u9879\u76EE\u5217\u8868" }),
+      projects.length === 0 && /* @__PURE__ */ jsxs("div", { style: { padding: 16, color: "var(--ai-text-muted)", fontSize: 12, textAlign: "center" }, children: [
+        "\u6682\u65E0\u9879\u76EE",
+        /* @__PURE__ */ jsx("br", {}),
+        /* @__PURE__ */ jsx("span", { style: { fontSize: 11 }, children: "\u70B9\u51FB\u4E0A\u65B9\u300C+ \u65B0\u5EFA\u300D\u521B\u5EFA" })
+      ] }),
       projects.map((p) => /* @__PURE__ */ jsxs("div", { className: `proj-item ${p.id === currentId ? "active" : ""}`, onClick: () => onSelect(p.id), title: p.name, children: [
         /* @__PURE__ */ jsx("span", { className: "proj-name", children: p.name }),
         /* @__PURE__ */ jsx("span", { className: "del", onClick: (e) => {
@@ -1621,6 +1626,10 @@ ${c.content || ""}`).join("\n\n");
           /* @__PURE__ */ jsx("span", { className: "logo-icon", children: "\u{1F3AC}" }),
           /* @__PURE__ */ jsx("span", { className: "logo-text", children: "\u77ED\u5267\u811A\u672C\u5DE5\u574A" }),
           /* @__PURE__ */ jsx("span", { className: "logo-badge", children: "v3.1" })
+        ] }),
+        project && /* @__PURE__ */ jsxs("span", { className: "mobile-current-proj", onClick: () => setSidebarOpen(true), children: [
+          project.name,
+          " \u25BE"
         ] })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "header-right", children: [

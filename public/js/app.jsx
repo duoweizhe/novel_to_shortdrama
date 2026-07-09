@@ -51,7 +51,7 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, col
       <div className="sidebar-head">
         <Button size="small" type="primary" onClick={onNew}>+ 新建</Button>
         <Button size="small" onClick={() => fileRef.current?.click()}>导入</Button>
-        <Button size="small" ghost onClick={onToggle} style={{ marginLeft: 'auto' }}>«</Button>
+        <Button size="small" ghost onClick={onToggle} className="sidebar-collapse-desktop" style={{ marginLeft: 'auto' }}>«</Button>
         <button className="sidebar-close-mobile" onClick={onCloseMobile}>✕</button>
         <input ref={fileRef} type="file" accept=".json" hidden onChange={async (e) => {
           const f = e.target.files[0]; if (!f) return;
@@ -60,7 +60,8 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, col
         }} />
       </div>
       <div className="sidebar-list">
-        {projects.length === 0 && <div style={{ padding: 16, color: 'var(--ai-text-muted)', fontSize: 12, textAlign: 'center' }}>暂无项目</div>}
+        <div className="sidebar-list-title">项目列表</div>
+        {projects.length === 0 && <div style={{ padding: 16, color: 'var(--ai-text-muted)', fontSize: 12, textAlign: 'center' }}>暂无项目<br/><span style={{fontSize:11}}>点击上方「+ 新建」创建</span></div>}
         {projects.map(p => (
           <div key={p.id} className={`proj-item ${p.id === currentId ? 'active' : ''}`} onClick={() => onSelect(p.id)} title={p.name}>
             <span className="proj-name">{p.name}</span>
@@ -758,6 +759,7 @@ function App() {
         <div className="header-left">
           <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>☰</button>
           <div className="logo"><span className="logo-icon">🎬</span><span className="logo-text">短剧脚本工坊</span><span className="logo-badge">v3.1</span></div>
+          {project && <span className="mobile-current-proj" onClick={() => setSidebarOpen(true)}>{project.name} ▾</span>}
         </div>
         <div className="header-right">
           <div className="model-info" onClick={() => setSettingsOpen(true)}>

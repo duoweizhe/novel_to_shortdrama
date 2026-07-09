@@ -131,6 +131,8 @@ button { font-family: inherit; }
 .mobile-menu-btn { display: none; font-size: 20px; background: none; border: none; cursor: pointer; color: var(--ai-text); padding: 4px 8px; }
 .sidebar-close-mobile { display: none; }
 .sidebar-overlay { display: none; }
+.sidebar-list-title { display: none; }
+.mobile-current-proj { display: none; }
 .mobile-tabs { display: none; }
 
 /* ===== Responsive: mobile ===== */
@@ -143,6 +145,10 @@ button { font-family: inherit; }
   .header-right .ai-btn { padding: 0 10px; font-size: 12px; }
 
   .mobile-menu-btn { display: flex; align-items: center; }
+  .mobile-current-proj { display: block; font-size: 12px; font-weight: 700; color: var(--ai-text); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+  .mobile-current-proj:active { background: var(--ai-primary-bg); }
+  .sidebar-list-title { display: block; font-size: 12px; font-weight: 700; color: var(--ai-text-muted); padding: 4px 12px 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .sidebar-collapse-desktop { display: none !important; }
   .mobile-tabs { display: flex; gap: 0; position: absolute; bottom: 0; left: 0; right: 0; height: 44px; background: var(--ai-bg-card); border-top: 2px solid var(--ai-border); z-index: 100; }
   .mobile-tabs button { flex: 1; border: none; background: none; font-size: 14px; font-weight: 700; color: var(--ai-text-muted); cursor: pointer; transition: all .15s; }
   .mobile-tabs button.active { color: var(--ai-primary); border-bottom: 3px solid var(--ai-primary); }
