@@ -461,7 +461,8 @@ const PRESET_PROVIDERS = [
   { id: 'qwen', name: '通义千问', type: 'llm', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-plus', models: ['qwen-plus', 'qwen-max', 'qwen-turbo'] },
   { id: 'openai', name: 'OpenAI', type: 'llm', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o-mini', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'] },
   { id: 'mimo', name: 'MiMo', type: 'llm', baseUrl: 'https://api-sgp-oc.xiaomimimo.com/v1', defaultModel: 'mimo-v2.5', models: ['mimo-v2.5'] },
-  { id: 'agnes', name: 'Agnes AI', type: 'media', baseUrl: 'https://apihub.agnes-ai.com/v1', defaultModel: 'agnes-image-2.0-flash', models: ['agnes-image-2.0-flash', 'agnes-video-v2.0'] },
+  { id: 'agnes-llm', name: 'Agnes 2.0 Flash', type: 'llm', baseUrl: 'https://apihub.agnes-ai.com/v1', defaultModel: 'agnes-2.0-flash', models: ['agnes-2.0-flash'] },
+  { id: 'agnes-media', name: 'Agnes 生图/视频', type: 'media', baseUrl: 'https://apihub.agnes-ai.com/v1', defaultModel: 'agnes-image-2.1-flash', models: ['agnes-image-2.1-flash', 'agnes-video-v2.0'] },
   { id: 'openai-dalle', name: 'OpenAI DALL·E', type: 'media', baseUrl: 'https://api.openai.com/v1', defaultModel: 'dall-e-3', models: ['dall-e-3', 'dall-e-2'] },
 ];
 
@@ -480,7 +481,7 @@ function getMediaProvider() {
     const p = cfg.providers.find(x => x.id === cfg.mediaProvider);
     if (p && p.apiKey) return p;
   }
-  return cfg.providers.find(p => p.apiKey && p.baseUrl.includes('agnes')) || null;
+  return cfg.providers.find(p => p.apiKey && p.id.includes('agnes')) || null;
 }
 
 async function withRetry(fn, { maxRetries = 3, timeoutMs = 90000, label = 'API' } = {}) {
@@ -1038,36 +1039,57 @@ app.post('/api/check-consistency', async (req, res) => {
 //  API: AI 生图/生视频
 // ===================================================================
 app.post('/api/generate/image', async (req, res) => {
-  const { prompt, negativePrompt, size, visualStyle } = req.body;
+  const { prompt, negativePrompt, size, visualStyle, images } = req.body;
   if (!prompt) return res.status(400).json({ error: '请提供prompt' });
   const provider = getMediaProvider();
-  if (!provider) return res.status(400).json({ error: '未配置图像生成提供商(Agnes/DALL-E)' });
-  // prompt已包含风格关键词，仅补充negative prompt
+  if (!provider) return res.status(400).json({ error: '未配置图像生成提供商' });
   const styledNeg = getStyleNegative(visualStyle, negativePrompt);
   try {
     const url = provider.baseUrl.replace(/\/+$/, '') + '/images/generations';
-    const body = { model: provider.model || 'agnes-image-2.0-flash', prompt: styledNeg ? `${prompt} [negative: ${styledNeg}]` : prompt, size: size || '1024x1024', extra_body: { response_format: 'url' } };
+    const extraBody = { response_format: 'url' };
+    // 图生图：传入参考图片
+    if (images && images.length > 0) extraBody.image = images;
+    const body = {
+      model: provider.model?.includes('agnes') ? 'agnes-image-2.1-flash' : (provider.model || 'agnes-image-2.1-flash'),
+      prompt: styledNeg ? `${prompt} [negative: ${styledNeg}]` : prompt,
+      size: size || '1024x768',
+      extra_body: extraBody,
+    };
     const r = await withRetry(async () => {
       const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + provider.apiKey }, body: JSON.stringify(body) });
-      if (!resp.ok) throw new Error(`图片API错误 ${resp.status}: ${await resp.text()}`);
+      if (!resp.ok) throw new Error(`图片API错误 ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
       const d = await resp.json();
       return d.data?.[0]?.url || d.data?.[0]?.b64_json || '';
-    }, { maxRetries: 3, timeoutMs: 120000, label: '图片生成' });
+    }, { maxRetries: 3, timeoutMs: 180000, label: '图片生成' });
     res.json({ ok: true, url: r });
   } catch (e) { res.json({ ok: false, error: e.message }); }
 });
 
 app.post('/api/generate/video', async (req, res) => {
-  const { prompt, visualStyle, ...opts } = req.body;
+  const { prompt, visualStyle, negativePrompt, image, height, width, num_frames, frame_rate, mode } = req.body;
   if (!prompt) return res.status(400).json({ error: '请提供prompt' });
   const provider = getMediaProvider();
   if (!provider) return res.status(400).json({ error: '未配置视频生成提供商' });
-  // prompt已包含风格关键词，直接使用
   try {
     const url = provider.baseUrl.replace(/\/+$/, '') + '/videos';
+    const body = {
+      model: 'agnes-video-v2.0',
+      prompt,
+      height: height || 768,
+      width: width || 1152,
+      num_frames: num_frames || 121,  // 8n+1: 81(3s)/121(5s)/241(10s)/441(18s)
+      frame_rate: frame_rate || 24,
+    };
+    // 图生视频
+    if (image) body.image = image;
+    // 关键帧模式
+    if (mode === 'keyframes' && req.body.images) {
+      body.extra_body = { image: req.body.images, mode: 'keyframes' };
+    }
+    if (negativePrompt) body.negative_prompt = negativePrompt;
     const r = await withRetry(async () => {
-      const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + provider.apiKey }, body: JSON.stringify({ model: 'agnes-video-v2.0', prompt: prompt, height: opts.height || 768, width: opts.width || 1152, num_frames: opts.num_frames || 121, frame_rate: opts.frame_rate || 24, ...opts }) });
-      if (!resp.ok) throw new Error(`视频API错误 ${resp.status}`);
+      const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + provider.apiKey }, body: JSON.stringify(body) });
+      if (!resp.ok) throw new Error(`视频API错误 ${resp.status}: ${(await resp.text()).slice(0, 300)}`);
       return resp.json();
     }, { maxRetries: 2, timeoutMs: 60000, label: '视频任务' });
     res.json({ ok: true, ...r });
@@ -1078,8 +1100,10 @@ app.get('/api/generate/video/:videoId', async (req, res) => {
   const provider = getMediaProvider();
   if (!provider) return res.status(400).json({ error: '未配置提供商' });
   try {
-    const resp = await fetch(`https://apihub.agnes-ai.com/agnesapi?video_id=${req.params.videoId}`, { headers: { 'Authorization': 'Bearer ' + provider.apiKey } });
-    if (!resp.ok) throw new Error(`查询错误 ${resp.status}`);
+    // 使用 provider baseUrl 的根域名构建 agnesapi 查询路径
+    const baseRoot = provider.baseUrl.replace(/\/v1\/?$/, '');
+    const resp = await fetch(`${baseRoot}/agnesapi?video_id=${req.params.videoId}&model_name=agnes-video-v2.0`, { headers: { 'Authorization': 'Bearer ' + provider.apiKey } });
+    if (!resp.ok) throw new Error(`查询错误 ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
     res.json({ ok: true, ...(await resp.json()) });
   } catch (e) { res.json({ ok: false, error: e.message }); }
 });

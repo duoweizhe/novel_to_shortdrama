@@ -66,8 +66,8 @@ var api = {
   getConfig: () => http("/api/config/llm"),
   saveConfig: (cfg) => http("/api/config/llm", { method: "PUT", body: cfg }),
   testConn: (baseUrl, apiKey, model) => http("/api/config/llm/test", { method: "POST", body: { baseUrl, apiKey, model } }),
-  genImage: (prompt, negativePrompt, size, style) => http("/api/generate/image", { method: "POST", body: { prompt, negativePrompt, size, visualStyle: style } }),
-  genVideo: (prompt, style, opts) => http("/api/generate/video", { method: "POST", body: { prompt, visualStyle: style, ...opts } }),
+  genImage: (prompt, negativePrompt, size, style, images) => http("/api/generate/image", { method: "POST", body: { prompt, negativePrompt, size, visualStyle: style, images } }),
+  genVideo: (params) => http("/api/generate/video", { method: "POST", body: params }),
   getVideo: (id) => http("/api/generate/video/" + id),
   preprocess: (content, onData, signal) => sse("/api/preprocess", { content }, onData, signal),
   analyze: (params, onData, signal) => sse("/api/analyze", params, onData, signal),
@@ -622,7 +622,7 @@ var EXAMPLE_PROJECT = {
 };
 
 // public/js/app.jsx
-import { jsx, jsxs } from "react/jsx-runtime";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var { useState: useS, useEffect: useE, useRef: useR, useCallback: useCB } = React;
 var MODULES = [
   { id: "structure", name: "\u5267\u60C5\u7ED3\u6784", icon: "\u{1F4D0}", type: "md" },
@@ -1403,13 +1403,22 @@ function KnowledgeView({ project, onUpdate }) {
   ] });
 }
 function MediaGen({ styles, project, characters, scenes }) {
+  const [tab, setTab] = useS("image");
   const [prompt, setPrompt] = useS("");
   const [negPrompt, setNegPrompt] = useS("");
-  const [size, setSize] = useS("1024x1024");
+  const [size, setSize] = useS("1024x768");
   const [gen, setGen] = useS(false);
   const [imgUrl, setImgUrl] = useS(null);
   const [err, setErr] = useS("");
-  const generate = async () => {
+  const [refImage, setRefImage] = useS("");
+  const [vidDuration, setVidDuration] = useS("5");
+  const [vidRatio, setVidRatio] = useS("16:9");
+  const [vidTask, setVidTask] = useS(null);
+  const [vidPolling, setVidPolling] = useS(false);
+  const pollRef = useR(null);
+  const DURATION_MAP = { "3": { num_frames: 81, frame_rate: 24 }, "5": { num_frames: 121, frame_rate: 24 }, "10": { num_frames: 241, frame_rate: 24 } };
+  const RATIO_MAP = { "16:9": { width: 1152, height: 768 }, "9:16": { width: 768, height: 1152 }, "1:1": { width: 896, height: 896 } };
+  const generateImage = async () => {
     if (!prompt) {
       toast("\u8BF7\u8F93\u5165Prompt", "error");
       return;
@@ -1418,10 +1427,11 @@ function MediaGen({ styles, project, characters, scenes }) {
     setErr("");
     setImgUrl(null);
     try {
-      const r = await api.genImage(prompt, negPrompt, size, project?.style);
+      const images = refImage ? [refImage] : void 0;
+      const r = await api.genImage(prompt, negPrompt, size, project?.style, images);
       if (r.ok) {
         setImgUrl(r.url);
-        toast("\u751F\u6210\u6210\u529F", "ok");
+        toast(refImage ? "\u56FE\u751F\u56FE\u5B8C\u6210" : "\u6587\u751F\u56FE\u5B8C\u6210", "ok");
       } else {
         setErr(r.error);
         toast("\u751F\u6210\u5931\u8D25", "error");
@@ -1432,36 +1442,162 @@ function MediaGen({ styles, project, characters, scenes }) {
     }
     setGen(false);
   };
+  const generateVideo = async () => {
+    if (!prompt) {
+      toast("\u8BF7\u8F93\u5165Prompt", "error");
+      return;
+    }
+    setGen(true);
+    setErr("");
+    setVidTask(null);
+    setVidPolling(true);
+    try {
+      const dur = DURATION_MAP[vidDuration];
+      const ratio = RATIO_MAP[vidRatio];
+      const params = {
+        prompt,
+        visualStyle: project?.style,
+        negativePrompt: negPrompt || void 0,
+        height: ratio.height,
+        width: ratio.width,
+        num_frames: dur.num_frames,
+        frame_rate: dur.frame_rate,
+        image: refImage || void 0
+      };
+      const r = await api.genVideo(params);
+      if (r.ok && r.video_id) {
+        setVidTask({ video_id: r.video_id, status: r.status, progress: r.progress || 0, url: null });
+        toast("\u89C6\u9891\u4EFB\u52A1\u5DF2\u521B\u5EFA\uFF0C\u6B63\u5728\u751F\u6210...", "info");
+        pollVideo(r.video_id);
+      } else {
+        setErr(r.error || "\u521B\u5EFA\u4EFB\u52A1\u5931\u8D25");
+        setVidPolling(false);
+      }
+    } catch (e) {
+      setErr(e.message);
+      setVidPolling(false);
+    }
+    setGen(false);
+  };
+  const pollVideo = async (videoId) => {
+    let attempts = 0;
+    const poll = async () => {
+      attempts++;
+      try {
+        const r = await api.getVideo(videoId);
+        if (!r.ok) {
+          setErr(r.error);
+          setVidPolling(false);
+          return;
+        }
+        setVidTask({ video_id: videoId, status: r.status, progress: r.progress || 0, url: r.url || null, seconds: r.seconds, size: r.size });
+        if (r.status === "completed") {
+          setVidPolling(false);
+          toast("\u89C6\u9891\u751F\u6210\u5B8C\u6210", "ok");
+          return;
+        }
+        if (r.status === "failed") {
+          setErr("\u89C6\u9891\u751F\u6210\u5931\u8D25");
+          setVidPolling(false);
+          return;
+        }
+        if (attempts < 120) {
+          pollRef.current = setTimeout(poll, 3e3);
+        } else {
+          setErr("\u89C6\u9891\u751F\u6210\u8D85\u65F6");
+          setVidPolling(false);
+        }
+      } catch (e) {
+        setErr(e.message);
+        setVidPolling(false);
+      }
+    };
+    poll();
+  };
+  useE(() => () => {
+    if (pollRef.current) clearTimeout(pollRef.current);
+  }, []);
   const useCharPrompt = (p, label) => {
     setPrompt(p || "");
     toast("\u5DF2\u586B\u5165" + label, "ok");
   };
+  const onUploadRef = (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => setRefImage(reader.result);
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
   return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsxs("div", { className: "seg", style: { marginBottom: 12 }, children: [
+      /* @__PURE__ */ jsx("button", { className: tab === "image" ? "active" : "", onClick: () => setTab("image"), children: "\u{1F5BC}\uFE0F \u751F\u56FE" }),
+      /* @__PURE__ */ jsx("button", { className: tab === "video" ? "active" : "", onClick: () => setTab("video"), children: "\u{1F3AC} \u751F\u89C6\u9891" })
+    ] }),
     /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 12 }, children: [
-      /* @__PURE__ */ jsx("div", { className: "card-title", style: { marginBottom: 10 }, children: "\u{1F5BC}\uFE0F AI \u751F\u56FE" }),
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
-        /* @__PURE__ */ jsx("label", { children: "Prompt\uFF08\u81EA\u52A8\u8FFD\u52A0\u5F53\u524D\u89C6\u89C9\u98CE\u683C\u540E\u7F00\uFF09" }),
+        /* @__PURE__ */ jsx("label", { children: "Prompt\uFF08\u5DF2\u81EA\u52A8\u8FFD\u52A0\u5F53\u524D\u89C6\u89C9\u98CE\u683C\uFF09" }),
         /* @__PURE__ */ jsx("textarea", { value: prompt, onChange: (e) => setPrompt(e.target.value), placeholder: "\u63CF\u8FF0\u8981\u751F\u6210\u7684\u753B\u9762...", style: { minHeight: 80 } })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
         /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
           /* @__PURE__ */ jsx("label", { children: "Negative Prompt" }),
-          /* @__PURE__ */ jsx("input", { value: negPrompt, onChange: (e) => setNegPrompt(e.target.value) })
+          /* @__PURE__ */ jsx("input", { value: negPrompt, onChange: (e) => setNegPrompt(e.target.value), placeholder: "\u6392\u9664\u7684\u5143\u7D20..." })
         ] }),
-        /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+        tab === "image" ? /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
           /* @__PURE__ */ jsx("label", { children: "\u5C3A\u5BF8" }),
           /* @__PURE__ */ jsxs("select", { value: size, onChange: (e) => setSize(e.target.value), children: [
-            /* @__PURE__ */ jsx("option", { children: "1024x1024" }),
             /* @__PURE__ */ jsx("option", { children: "1024x768" }),
-            /* @__PURE__ */ jsx("option", { children: "768x1024" })
+            /* @__PURE__ */ jsx("option", { children: "768x1024" }),
+            /* @__PURE__ */ jsx("option", { children: "1024x1024" })
+          ] })
+        ] }) : /* @__PURE__ */ jsxs(Fragment, { children: [
+          /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+            /* @__PURE__ */ jsx("label", { children: "\u65F6\u957F" }),
+            /* @__PURE__ */ jsxs("select", { value: vidDuration, onChange: (e) => setVidDuration(e.target.value), children: [
+              /* @__PURE__ */ jsx("option", { value: "3", children: "\u7EA63\u79D2" }),
+              /* @__PURE__ */ jsx("option", { value: "5", children: "\u7EA65\u79D2" }),
+              /* @__PURE__ */ jsx("option", { value: "10", children: "\u7EA610\u79D2" })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+            /* @__PURE__ */ jsx("label", { children: "\u753B\u5E45" }),
+            /* @__PURE__ */ jsxs("select", { value: vidRatio, onChange: (e) => setVidRatio(e.target.value), children: [
+              /* @__PURE__ */ jsx("option", { value: "16:9", children: "16:9 \u6A2A\u5C4F" }),
+              /* @__PURE__ */ jsx("option", { value: "9:16", children: "9:16 \u7AD6\u5C4F" }),
+              /* @__PURE__ */ jsx("option", { value: "1:1", children: "1:1 \u65B9\u5F62" })
+            ] })
           ] })
         ] })
       ] }),
-      /* @__PURE__ */ jsx(Button, { type: "primary", loading: gen, onClick: generate, block: true, children: "\u751F\u6210\u56FE\u7247" }),
+      /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
+        /* @__PURE__ */ jsx("label", { children: "\u53C2\u8003\u56FE\uFF08\u53EF\u9009\uFF0C\u7528\u4E8E\u56FE\u751F\u56FE/\u56FE\u751F\u89C6\u9891\uFF09" }),
+        /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 8, alignItems: "center" }, children: [
+          /* @__PURE__ */ jsx("input", { value: refImage ? "(\u5DF2\u4E0A\u4F20\u53C2\u8003\u56FE)" : "", readOnly: true, placeholder: "\u65E0\u53C2\u8003\u56FE\u5219\u6587\u751F\u56FE/\u6587\u751F\u89C6\u9891", style: { flex: 1 } }),
+          /* @__PURE__ */ jsx("input", { type: "file", accept: "image/*", hidden: true, id: "refUpload", onChange: onUploadRef }),
+          /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => document.getElementById("refUpload")?.click(), children: "\u4E0A\u4F20" }),
+          refImage && /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => setRefImage(""), children: "\u6E05\u9664" })
+        ] }),
+        refImage && /* @__PURE__ */ jsx("img", { src: refImage, alt: "\u53C2\u8003\u56FE", style: { width: 80, height: 80, objectFit: "cover", borderRadius: 8, marginTop: 6, border: "2px solid var(--ai-border)" } })
+      ] }),
+      tab === "image" ? /* @__PURE__ */ jsx(Button, { type: "primary", loading: gen, onClick: generateImage, block: true, children: refImage ? "\u{1F3A8} \u56FE\u751F\u56FE" : "\u{1F5BC}\uFE0F \u6587\u751F\u56FE" }) : /* @__PURE__ */ jsx(Button, { type: "primary", loading: gen, onClick: generateVideo, block: true, children: refImage ? "\u{1F3AC} \u56FE\u751F\u89C6\u9891" : "\u{1F3AC} \u6587\u751F\u89C6\u9891" }),
       err && /* @__PURE__ */ jsx("div", { className: "status-bar error", children: err }),
-      imgUrl && /* @__PURE__ */ jsx("img", { className: "img-preview", src: imgUrl, alt: "\u751F\u6210\u7ED3\u679C" })
+      imgUrl && /* @__PURE__ */ jsx("img", { className: "img-preview", src: imgUrl, alt: "\u751F\u6210\u7ED3\u679C" }),
+      vidTask && /* @__PURE__ */ jsxs("div", { style: { marginTop: 12, padding: 12, background: "var(--ai-bg-content)", borderRadius: 8 }, children: [
+        /* @__PURE__ */ jsxs("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 6 }, children: [
+          "\u89C6\u9891\u4EFB\u52A1 ",
+          vidTask.status === "completed" ? "\u2705 \u5B8C\u6210" : vidTask.status === "failed" ? "\u274C \u5931\u8D25" : "\u23F3 \u751F\u6210\u4E2D...",
+          vidTask.seconds && /* @__PURE__ */ jsxs("span", { style: { marginLeft: 8, color: "var(--ai-text-muted)" }, children: [
+            vidTask.seconds,
+            "s / ",
+            vidTask.size
+          ] })
+        ] }),
+        vidTask.status !== "completed" && vidTask.status !== "failed" && /* @__PURE__ */ jsx("div", { className: "progress-line", children: /* @__PURE__ */ jsx("div", { className: "fill", style: { width: vidTask.progress + "%" } }) }),
+        vidTask.status === "completed" && vidTask.url && /* @__PURE__ */ jsx("video", { src: vidTask.url, controls: true, style: { width: "100%", borderRadius: 8, marginTop: 8 } })
+      ] })
     ] }),
-    /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u26A1 \u5FEB\u901F\u586B\u5165\uFF08\u70B9\u51FB\u590D\u5236\u89D2\u82721x4\u6A2A\u5411\u6392\u5217/\u573A\u666FPrompt\u5230\u4E0A\u65B9\uFF09" }),
+    /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u26A1 \u5FEB\u901F\u586B\u5165\uFF08\u70B9\u51FB\u590D\u5236\u89D2\u8272/\u573A\u666FPrompt\u5230\u4E0A\u65B9\uFF09" }),
     characters.length === 0 && scenes.length === 0 ? /* @__PURE__ */ jsx(Empty, { tip: "\u5148\u751F\u6210\u89D2\u8272/\u573A\u666F\u8BBE\u5B9A" }) : /* @__PURE__ */ jsxs("div", { className: "grid-cards", style: { marginTop: 10 }, children: [
       characters.map((c, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
         /* @__PURE__ */ jsx("div", { className: "kb-name", children: c.name }),
@@ -1470,7 +1606,21 @@ function MediaGen({ styles, project, characters, scenes }) {
       scenes.map((s, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
         /* @__PURE__ */ jsx("div", { className: "kb-name", children: s.name }),
         /* @__PURE__ */ jsx(Button, { size: "small", style: { marginTop: 6 }, onClick: () => useCharPrompt(s.imagePromptEn, s.name), disabled: !s.imagePromptEn, children: "\u573A\u666F\u56FE" })
-      ] }, "s" + i))
+      ] }, "s" + i)),
+      project?.results?.storyboard?.shots?.map((s, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
+        /* @__PURE__ */ jsxs("div", { className: "kb-name", children: [
+          "\u7B2C",
+          s.episode,
+          "\u96C6 ",
+          s.sceneNo,
+          "-",
+          s.shotNo
+        ] }),
+        /* @__PURE__ */ jsx(Button, { size: "small", style: { marginTop: 6 }, onClick: () => {
+          setTab("video");
+          useCharPrompt(s.promptEn, "\u5206\u955C" + s.shotNo);
+        }, disabled: !s.promptEn, children: "\u586B\u5165\u89C6\u9891EN" })
+      ] }, "v" + i))
     ] })
   ] });
 }

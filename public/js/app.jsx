@@ -628,38 +628,143 @@ function KnowledgeView({ project, onUpdate }) {
   );
 }
 
-// ============ Media Gen (角色1x4横向排列快速生图) ============
+// ============ Media Gen (生图/生视频/图生图/图生视频) ============
 function MediaGen({ styles, project, characters, scenes }) {
+  const [tab, setTab] = useS('image'); // 'image' | 'video'
   const [prompt, setPrompt] = useS('');
   const [negPrompt, setNegPrompt] = useS('');
-  const [size, setSize] = useS('1024x1024');
+  const [size, setSize] = useS('1024x768');
   const [gen, setGen] = useS(false);
   const [imgUrl, setImgUrl] = useS(null);
   const [err, setErr] = useS('');
+  const [refImage, setRefImage] = useS(''); // 图生图/图生视频参考图URL
+  const [vidDuration, setVidDuration] = useS('5'); // 3s/5s/10s
+  const [vidRatio, setVidRatio] = useS('16:9');
+  const [vidTask, setVidTask] = useS(null); // {video_id, status, progress, url}
+  const [vidPolling, setVidPolling] = useS(false);
+  const pollRef = useR(null);
 
-  const generate = async () => {
+  const DURATION_MAP = { '3': { num_frames: 81, frame_rate: 24 }, '5': { num_frames: 121, frame_rate: 24 }, '10': { num_frames: 241, frame_rate: 24 } };
+  const RATIO_MAP = { '16:9': { width: 1152, height: 768 }, '9:16': { width: 768, height: 1152 }, '1:1': { width: 896, height: 896 } };
+
+  const generateImage = async () => {
     if (!prompt) { toast('请输入Prompt', 'error'); return; }
     setGen(true); setErr(''); setImgUrl(null);
-    try { const r = await api.genImage(prompt, negPrompt, size, project?.style); if (r.ok) { setImgUrl(r.url); toast('生成成功', 'ok'); } else { setErr(r.error); toast('生成失败', 'error'); } }
-    catch (e) { setErr(e.message); toast('生成失败', 'error'); }
+    try {
+      const images = refImage ? [refImage] : undefined;
+      const r = await api.genImage(prompt, negPrompt, size, project?.style, images);
+      if (r.ok) { setImgUrl(r.url); toast(refImage ? '图生图完成' : '文生图完成', 'ok'); }
+      else { setErr(r.error); toast('生成失败', 'error'); }
+    } catch (e) { setErr(e.message); toast('生成失败', 'error'); }
     setGen(false);
   };
+
+  const generateVideo = async () => {
+    if (!prompt) { toast('请输入Prompt', 'error'); return; }
+    setGen(true); setErr(''); setVidTask(null); setVidPolling(true);
+    try {
+      const dur = DURATION_MAP[vidDuration];
+      const ratio = RATIO_MAP[vidRatio];
+      const params = {
+        prompt, visualStyle: project?.style, negativePrompt: negPrompt || undefined,
+        height: ratio.height, width: ratio.width,
+        num_frames: dur.num_frames, frame_rate: dur.frame_rate,
+        image: refImage || undefined,
+      };
+      const r = await api.genVideo(params);
+      if (r.ok && r.video_id) {
+        setVidTask({ video_id: r.video_id, status: r.status, progress: r.progress || 0, url: null });
+        toast('视频任务已创建，正在生成...', 'info');
+        pollVideo(r.video_id);
+      } else { setErr(r.error || '创建任务失败'); setVidPolling(false); }
+    } catch (e) { setErr(e.message); setVidPolling(false); }
+    setGen(false);
+  };
+
+  const pollVideo = async (videoId) => {
+    let attempts = 0;
+    const poll = async () => {
+      attempts++;
+      try {
+        const r = await api.getVideo(videoId);
+        if (!r.ok) { setErr(r.error); setVidPolling(false); return; }
+        setVidTask({ video_id: videoId, status: r.status, progress: r.progress || 0, url: r.url || null, seconds: r.seconds, size: r.size });
+        if (r.status === 'completed') { setVidPolling(false); toast('视频生成完成', 'ok'); return; }
+        if (r.status === 'failed') { setErr('视频生成失败'); setVidPolling(false); return; }
+        if (attempts < 120) { pollRef.current = setTimeout(poll, 3000); }
+        else { setErr('视频生成超时'); setVidPolling(false); }
+      } catch (e) { setErr(e.message); setVidPolling(false); }
+    };
+    poll();
+  };
+
+  useE(() => () => { if (pollRef.current) clearTimeout(pollRef.current); }, []);
+
   const useCharPrompt = (p, label) => { setPrompt(p || ''); toast('已填入' + label, 'ok'); };
+  const onUploadRef = (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => setRefImage(reader.result);
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  };
 
   return (
     <div>
+      <div className="seg" style={{ marginBottom: 12 }}>
+        <button className={tab === 'image' ? 'active' : ''} onClick={() => setTab('image')}>🖼️ 生图</button>
+        <button className={tab === 'video' ? 'active' : ''} onClick={() => setTab('video')}>🎬 生视频</button>
+      </div>
+
       <div className="card" style={{ marginBottom: 12 }}>
-        <div className="card-title" style={{ marginBottom: 10 }}>🖼️ AI 生图</div>
-        <div className="ai-field"><label>Prompt（自动追加当前视觉风格后缀）</label><textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="描述要生成的画面..." style={{ minHeight: 80 }} /></div>
+        <div className="ai-field"><label>Prompt（已自动追加当前视觉风格）</label><textarea value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="描述要生成的画面..." style={{ minHeight: 80 }} /></div>
         <div className="form-row">
-          <div className="ai-field"><label>Negative Prompt</label><input value={negPrompt} onChange={e => setNegPrompt(e.target.value)} /></div>
-          <div className="ai-field"><label>尺寸</label><select value={size} onChange={e => setSize(e.target.value)}><option>1024x1024</option><option>1024x768</option><option>768x1024</option></select></div>
+          <div className="ai-field"><label>Negative Prompt</label><input value={negPrompt} onChange={e => setNegPrompt(e.target.value)} placeholder="排除的元素..." /></div>
+          {tab === 'image' ? (
+            <div className="ai-field"><label>尺寸</label><select value={size} onChange={e => setSize(e.target.value)}><option>1024x768</option><option>768x1024</option><option>1024x1024</option></select></div>
+          ) : (
+            <>
+              <div className="ai-field"><label>时长</label><select value={vidDuration} onChange={e => setVidDuration(e.target.value)}><option value="3">约3秒</option><option value="5">约5秒</option><option value="10">约10秒</option></select></div>
+              <div className="ai-field"><label>画幅</label><select value={vidRatio} onChange={e => setVidRatio(e.target.value)}><option value="16:9">16:9 横屏</option><option value="9:16">9:16 竖屏</option><option value="1:1">1:1 方形</option></select></div>
+            </>
+          )}
         </div>
-        <Button type="primary" loading={gen} onClick={generate} block>生成图片</Button>
+        {/* 参考图（图生图/图生视频） */}
+        <div className="ai-field">
+          <label>参考图（可选，用于图生图/图生视频）</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input value={refImage ? '(已上传参考图)' : ''} readOnly placeholder="无参考图则文生图/文生视频" style={{ flex: 1 }} />
+            <input type="file" accept="image/*" hidden id="refUpload" onChange={onUploadRef} />
+            <Button size="small" onClick={() => document.getElementById('refUpload')?.click()}>上传</Button>
+            {refImage && <Button size="small" danger onClick={() => setRefImage('')}>清除</Button>}
+          </div>
+          {refImage && <img src={refImage} alt="参考图" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 6, border: '2px solid var(--ai-border)' }} />}
+        </div>
+        {tab === 'image' ? (
+          <Button type="primary" loading={gen} onClick={generateImage} block>{refImage ? '🎨 图生图' : '🖼️ 文生图'}</Button>
+        ) : (
+          <Button type="primary" loading={gen} onClick={generateVideo} block>{refImage ? '🎬 图生视频' : '🎬 文生视频'}</Button>
+        )}
         {err && <div className="status-bar error">{err}</div>}
         {imgUrl && <img className="img-preview" src={imgUrl} alt="生成结果" />}
+        {/* 视频任务状态 */}
+        {vidTask && (
+          <div style={{ marginTop: 12, padding: 12, background: 'var(--ai-bg-content)', borderRadius: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
+              视频任务 {vidTask.status === 'completed' ? '✅ 完成' : vidTask.status === 'failed' ? '❌ 失败' : '⏳ 生成中...'}
+              {vidTask.seconds && <span style={{ marginLeft: 8, color: 'var(--ai-text-muted)' }}>{vidTask.seconds}s / {vidTask.size}</span>}
+            </div>
+            {vidTask.status !== 'completed' && vidTask.status !== 'failed' && (
+              <div className="progress-line"><div className="fill" style={{ width: vidTask.progress + '%' }} /></div>
+            )}
+            {vidTask.status === 'completed' && vidTask.url && (
+              <video src={vidTask.url} controls style={{ width: '100%', borderRadius: 8, marginTop: 8 }} />
+            )}
+          </div>
+        )}
       </div>
-      <div className="card-title">⚡ 快速填入（点击复制角色1x4横向排列/场景Prompt到上方）</div>
+
+      <div className="card-title">⚡ 快速填入（点击复制角色/场景Prompt到上方）</div>
       {characters.length === 0 && scenes.length === 0 ? <Empty tip="先生成角色/场景设定" /> : (
         <div className="grid-cards" style={{ marginTop: 10 }}>
           {characters.map((c, i) => (
@@ -672,6 +777,12 @@ function MediaGen({ styles, project, characters, scenes }) {
             <div key={'s' + i} className="item-card">
               <div className="kb-name">{s.name}</div>
               <Button size="small" style={{ marginTop: 6 }} onClick={() => useCharPrompt(s.imagePromptEn, s.name)} disabled={!s.imagePromptEn}>场景图</Button>
+            </div>
+          ))}
+          {project?.results?.storyboard?.shots?.map((s, i) => (
+            <div key={'v' + i} className="item-card">
+              <div className="kb-name">第{s.episode}集 {s.sceneNo}-{s.shotNo}</div>
+              <Button size="small" style={{ marginTop: 6 }} onClick={() => { setTab('video'); useCharPrompt(s.promptEn, '分镜' + s.shotNo); }} disabled={!s.promptEn}>填入视频EN</Button>
             </div>
           ))}
         </div>
