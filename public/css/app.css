@@ -114,7 +114,15 @@ button { font-family: inherit; }
 
 /* Main area */
 .main-area { flex: 1; display: flex; overflow: hidden; }
-.input-panel { width: 380px; flex-shrink: 0; border-right: 2px solid var(--ai-border); background: var(--ai-bg); overflow-y: auto; padding: 14px; }
+.input-panel { width: 380px; flex-shrink: 0; border-right: 2px solid var(--ai-border); background: var(--ai-bg); overflow-y: auto; overflow-x: hidden; padding: 14px; position: relative; transition: width .2s ease; }
+.input-panel.collapsed { width: 40px; padding: 0; overflow: visible; }
+.input-panel-toggle { position: absolute; right: -2px; top: 50%; transform: translateY(-50%); width: 18px; height: 40px; background: var(--ai-bg-card); border: 2px solid var(--ai-border); border-left: none; border-radius: 0 6px 6px 0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; color: var(--ai-text-muted); z-index: 10; transition: background .15s; }
+.input-panel-toggle:hover { background: var(--ai-primary); color: #fff; }
+.input-collapsed-bar { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; cursor: pointer; padding-top: 8px; }
+.input-collapsed-bar:hover { background: var(--ai-primary-bg); }
+.input-collapsed-icon { font-size: 18px; color: var(--ai-text-muted); margin-bottom: 4px; }
+.input-collapsed-label { writing-mode: vertical-rl; font-size: 11px; color: var(--ai-text-muted); letter-spacing: 2px; margin-bottom: 12px; }
+.input-collapsed-mini { display: flex; flex-direction: column; gap: 10px; opacity: .5; }
 .result-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; background: var(--ai-bg); }
 
 /* Cards */

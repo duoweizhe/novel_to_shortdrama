@@ -965,7 +965,7 @@ function ChapterManager({ project, onUpdate }) {
     ] }) })
   ] });
 }
-function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, analysisSource, setAnalysisSource }) {
+function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, analysisSource, setAnalysisSource, collapsed, onToggleCollapse }) {
   const [content, setContent] = useS(project?.content || "");
   const [selectedModules, setSelectedModules] = useS(MODULES.map((m) => m.id));
   const [status, setStatus] = useS("");
@@ -1003,7 +1003,21 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
     setPreprocessing(false);
   };
   const chapters = project?.chapters || [];
+  if (collapsed) {
+    return /* @__PURE__ */ jsx("div", { className: "input-panel collapsed", children: /* @__PURE__ */ jsxs("div", { className: "input-collapsed-bar", onClick: onToggleCollapse, title: "\u5C55\u5F00\u8F93\u5165\u9762\u677F", children: [
+      /* @__PURE__ */ jsx("span", { className: "input-collapsed-icon", children: "\u203A" }),
+      /* @__PURE__ */ jsx("span", { className: "input-collapsed-label", children: "\u8F93\u5165" }),
+      /* @__PURE__ */ jsxs("div", { className: "input-collapsed-mini", children: [
+        /* @__PURE__ */ jsx("div", { title: "\u6E90\u6587\u672C", style: { fontSize: 16 }, children: "\u{1F4DD}" }),
+        /* @__PURE__ */ jsx("div", { title: "\u7AE0\u8282\u7BA1\u7406", style: { fontSize: 16 }, children: "\u{1F4D6}" }),
+        /* @__PURE__ */ jsx("div", { title: "\u89C6\u89C9\u98CE\u683C", style: { fontSize: 16 }, children: "\u{1F3A8}" }),
+        /* @__PURE__ */ jsx("div", { title: "\u5206\u6790\u6A21\u5757", style: { fontSize: 16 }, children: "\u{1F4CB}" }),
+        /* @__PURE__ */ jsx("div", { title: "\u64CD\u4F5C", style: { fontSize: 16 }, children: "\u26A1" })
+      ] })
+    ] }) });
+  }
   return /* @__PURE__ */ jsxs("div", { className: "input-panel", children: [
+    /* @__PURE__ */ jsx("div", { className: "input-panel-toggle", onClick: onToggleCollapse, title: "\u6536\u8D77\u8F93\u5165\u9762\u677F", children: "\u2039" }),
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
       /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4DD} \u6E90\u6587\u672C" }) }),
       /* @__PURE__ */ jsx("textarea", { id: "sourceText", value: content, onChange: (e) => onContentChange(e.target.value), placeholder: "\u7C98\u8D34\u5C0F\u8BF4/\u6545\u4E8B/\u5267\u672C\u5168\u6587\uFF0C\u6216\u4F7F\u7528\u4E0B\u65B9\u7AE0\u8282\u7BA1\u7406\u5206\u7AE0...", spellCheck: false }),
@@ -1492,6 +1506,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useS(false);
   const [newOpen, setNewOpen] = useS(false);
   const [collapsed, setCollapsed] = useS(false);
+  const [inputCollapsed, setInputCollapsed] = useS(false);
   const [cfg, setCfg] = useS(null);
   const [analysisSource, setAnalysisSource] = useS({ mode: "chapters", chId: "" });
   const [streaming, setStreaming] = useS("");
@@ -1621,6 +1636,8 @@ ${c.content || ""}`).join("\n\n");
             hasChapters,
             analysisSource,
             setAnalysisSource,
+            collapsed: inputCollapsed,
+            onToggleCollapse: () => setInputCollapsed((c) => !c),
             onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods)
           }
         ),

@@ -292,7 +292,7 @@ function ChapterManager({ project, onUpdate }) {
 }
 
 // ============ Input Panel ============
-function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, analysisSource, setAnalysisSource }) {
+function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, analysisSource, setAnalysisSource, collapsed, onToggleCollapse }) {
   const [content, setContent] = useS(project?.content || '');
   const [selectedModules, setSelectedModules] = useS(MODULES.map(m => m.id));
   const [status, setStatus] = useS('');
@@ -319,8 +319,27 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
 
   const chapters = project?.chapters || [];
 
+  if (collapsed) {
+    return (
+      <div className="input-panel collapsed">
+        <div className="input-collapsed-bar" onClick={onToggleCollapse} title="展开输入面板">
+          <span className="input-collapsed-icon">›</span>
+          <span className="input-collapsed-label">输入</span>
+          <div className="input-collapsed-mini">
+            <div title="源文本" style={{ fontSize: 16 }}>📝</div>
+            <div title="章节管理" style={{ fontSize: 16 }}>📖</div>
+            <div title="视觉风格" style={{ fontSize: 16 }}>🎨</div>
+            <div title="分析模块" style={{ fontSize: 16 }}>📋</div>
+            <div title="操作" style={{ fontSize: 16 }}>⚡</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="input-panel">
+      <div className="input-panel-toggle" onClick={onToggleCollapse} title="收起输入面板">‹</div>
       <div className="card">
         <div className="card-head"><span className="card-title">📝 源文本</span></div>
         <textarea id="sourceText" value={content} onChange={e => onContentChange(e.target.value)} placeholder="粘贴小说/故事/剧本全文，或使用下方章节管理分章..." spellCheck={false} />
@@ -680,6 +699,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useS(false);
   const [newOpen, setNewOpen] = useS(false);
   const [collapsed, setCollapsed] = useS(false);
+  const [inputCollapsed, setInputCollapsed] = useS(false);
   const [cfg, setCfg] = useS(null);
   const [analysisSource, setAnalysisSource] = useS({ mode: 'chapters', chId: '' });
   const [streaming, setStreaming] = useS('');
@@ -747,6 +767,7 @@ function App() {
           <div className="main-area">
             <InputPanel project={project} onUpdate={updateProject} styles={styles} generating={false} hasChapters={hasChapters}
               analysisSource={analysisSource} setAnalysisSource={setAnalysisSource}
+              collapsed={inputCollapsed} onToggleCollapse={() => setInputCollapsed(c => !c)}
               onAnalyzeAll={(mods) => window.__analyzeAllImpl?.(mods)} />
             <ResultPanel project={project} onUpdate={updateProject} styles={styles} onAnalyzeAll={(mods) => window.__analyzeAllImpl?.(mods)} analysisSource={analysisContent} streaming={streaming} streamingType={streamingType} setStreaming={setStreaming} setStreamingType={setStreamingType} />
           </div>
