@@ -27,7 +27,7 @@ function toast(msg, type) {
 function renderMd(md) { if (!md) return ''; try { return marked.parse(md); } catch { return md; } }
 
 // ============ Sidebar (可收起) ============
-function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, collapsed, onToggle }) {
+function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, collapsed, onToggle, mobileOpen, onCloseMobile }) {
   const fileRef = useR(null);
   if (collapsed) {
     return (
@@ -47,11 +47,12 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, col
     );
   }
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-head">
         <Button size="small" type="primary" onClick={onNew}>+ 新建</Button>
         <Button size="small" onClick={() => fileRef.current?.click()}>导入</Button>
         <Button size="small" ghost onClick={onToggle} style={{ marginLeft: 'auto' }}>«</Button>
+        <button className="sidebar-close-mobile" onClick={onCloseMobile}>✕</button>
         <input ref={fileRef} type="file" accept=".json" hidden onChange={async (e) => {
           const f = e.target.files[0]; if (!f) return;
           try { onImport(JSON.parse(await f.text())); } catch { toast('导入失败', 'error'); }
@@ -324,7 +325,7 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
       <div className="input-panel collapsed">
         <div className="input-collapsed-bar" onClick={onToggleCollapse} title="展开输入面板">
           <span className="input-collapsed-icon">›</span>
-          <span className="input-collapsed-label">输入</span>
+          <span className="input-collapsed-label">输入面板</span>
           <div className="input-collapsed-mini">
             <div title="源文本" style={{ fontSize: 16 }}>📝</div>
             <div title="章节管理" style={{ fontSize: 16 }}>📖</div>
@@ -339,7 +340,10 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
 
   return (
     <div className="input-panel">
-      <div className="input-panel-toggle" onClick={onToggleCollapse} title="收起输入面板">‹</div>
+      <div className="input-panel-head">
+        <span className="input-panel-title">⚙️ 输入配置</span>
+        <button className="input-collapse-btn" onClick={onToggleCollapse} title="收起面板">‹</button>
+      </div>
       <div className="card">
         <div className="card-head"><span className="card-title">📝 源文本</span></div>
         <textarea id="sourceText" value={content} onChange={e => onContentChange(e.target.value)} placeholder="粘贴小说/故事/剧本全文，或使用下方章节管理分章..." spellCheck={false} />
@@ -700,6 +704,8 @@ function App() {
   const [newOpen, setNewOpen] = useS(false);
   const [collapsed, setCollapsed] = useS(false);
   const [inputCollapsed, setInputCollapsed] = useS(false);
+  const [mobileTab, setMobileTab] = useS('input');  // 'input' | 'result'
+  const [sidebarOpen, setSidebarOpen] = useS(false); // 手机端 sidebar 抽屉
   const [cfg, setCfg] = useS(null);
   const [analysisSource, setAnalysisSource] = useS({ mode: 'chapters', chId: '' });
   const [streaming, setStreaming] = useS('');
@@ -750,6 +756,7 @@ function App() {
     <div className="app-layout">
       <header className="app-header">
         <div className="header-left">
+          <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>☰</button>
           <div className="logo"><span className="logo-icon">🎬</span><span className="logo-text">短剧脚本工坊</span><span className="logo-badge">v3.1</span></div>
         </div>
         <div className="header-right">
@@ -760,11 +767,18 @@ function App() {
           </div>
           <Button size="small" onClick={() => setSettingsOpen(true)}>设置</Button>
         </div>
+        {project && (
+          <div className="mobile-tabs">
+            <button className={mobileTab === 'input' ? 'active' : ''} onClick={() => setMobileTab('input')}>输入</button>
+            <button className={mobileTab === 'result' ? 'active' : ''} onClick={() => setMobileTab('result')}>结果</button>
+          </div>
+        )}
       </header>
       <div className="app-body">
-        <Sidebar projects={projects} currentId={currentId} onSelect={loadProject} onNew={() => setNewOpen(true)} onDelete={deleteProject} onImport={importProject} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
+        {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+        <Sidebar projects={projects} currentId={currentId} onSelect={(id) => { loadProject(id); setSidebarOpen(false); }} onNew={() => { setNewOpen(true); setSidebarOpen(false); }} onDelete={deleteProject} onImport={importProject} collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} mobileOpen={sidebarOpen} onCloseMobile={() => setSidebarOpen(false)} />
         {project ? (
-          <div className="main-area">
+          <div className={`main-area mobile-tab-${mobileTab}`}>
             <InputPanel project={project} onUpdate={updateProject} styles={styles} generating={false} hasChapters={hasChapters}
               analysisSource={analysisSource} setAnalysisSource={setAnalysisSource}
               collapsed={inputCollapsed} onToggleCollapse={() => setInputCollapsed(c => !c)}

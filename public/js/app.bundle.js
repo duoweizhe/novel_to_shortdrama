@@ -652,7 +652,7 @@ function renderMd(md) {
     return md;
   }
 }
-function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, collapsed, onToggle }) {
+function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, collapsed, onToggle, mobileOpen, onCloseMobile }) {
   const fileRef = useR(null);
   if (collapsed) {
     return /* @__PURE__ */ jsxs("aside", { className: "sidebar collapsed", children: [
@@ -663,11 +663,12 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, col
       ] })
     ] });
   }
-  return /* @__PURE__ */ jsxs("aside", { className: "sidebar", children: [
+  return /* @__PURE__ */ jsxs("aside", { className: `sidebar ${mobileOpen ? "mobile-open" : ""}`, children: [
     /* @__PURE__ */ jsxs("div", { className: "sidebar-head", children: [
       /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: onNew, children: "+ \u65B0\u5EFA" }),
       /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => fileRef.current?.click(), children: "\u5BFC\u5165" }),
       /* @__PURE__ */ jsx(Button, { size: "small", ghost: true, onClick: onToggle, style: { marginLeft: "auto" }, children: "\xAB" }),
+      /* @__PURE__ */ jsx("button", { className: "sidebar-close-mobile", onClick: onCloseMobile, children: "\u2715" }),
       /* @__PURE__ */ jsx("input", { ref: fileRef, type: "file", accept: ".json", hidden: true, onChange: async (e) => {
         const f = e.target.files[0];
         if (!f) return;
@@ -1006,7 +1007,7 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
   if (collapsed) {
     return /* @__PURE__ */ jsx("div", { className: "input-panel collapsed", children: /* @__PURE__ */ jsxs("div", { className: "input-collapsed-bar", onClick: onToggleCollapse, title: "\u5C55\u5F00\u8F93\u5165\u9762\u677F", children: [
       /* @__PURE__ */ jsx("span", { className: "input-collapsed-icon", children: "\u203A" }),
-      /* @__PURE__ */ jsx("span", { className: "input-collapsed-label", children: "\u8F93\u5165" }),
+      /* @__PURE__ */ jsx("span", { className: "input-collapsed-label", children: "\u8F93\u5165\u9762\u677F" }),
       /* @__PURE__ */ jsxs("div", { className: "input-collapsed-mini", children: [
         /* @__PURE__ */ jsx("div", { title: "\u6E90\u6587\u672C", style: { fontSize: 16 }, children: "\u{1F4DD}" }),
         /* @__PURE__ */ jsx("div", { title: "\u7AE0\u8282\u7BA1\u7406", style: { fontSize: 16 }, children: "\u{1F4D6}" }),
@@ -1017,7 +1018,10 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
     ] }) });
   }
   return /* @__PURE__ */ jsxs("div", { className: "input-panel", children: [
-    /* @__PURE__ */ jsx("div", { className: "input-panel-toggle", onClick: onToggleCollapse, title: "\u6536\u8D77\u8F93\u5165\u9762\u677F", children: "\u2039" }),
+    /* @__PURE__ */ jsxs("div", { className: "input-panel-head", children: [
+      /* @__PURE__ */ jsx("span", { className: "input-panel-title", children: "\u2699\uFE0F \u8F93\u5165\u914D\u7F6E" }),
+      /* @__PURE__ */ jsx("button", { className: "input-collapse-btn", onClick: onToggleCollapse, title: "\u6536\u8D77\u9762\u677F", children: "\u2039" })
+    ] }),
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
       /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4DD} \u6E90\u6587\u672C" }) }),
       /* @__PURE__ */ jsx("textarea", { id: "sourceText", value: content, onChange: (e) => onContentChange(e.target.value), placeholder: "\u7C98\u8D34\u5C0F\u8BF4/\u6545\u4E8B/\u5267\u672C\u5168\u6587\uFF0C\u6216\u4F7F\u7528\u4E0B\u65B9\u7AE0\u8282\u7BA1\u7406\u5206\u7AE0...", spellCheck: false }),
@@ -1507,6 +1511,8 @@ function App() {
   const [newOpen, setNewOpen] = useS(false);
   const [collapsed, setCollapsed] = useS(false);
   const [inputCollapsed, setInputCollapsed] = useS(false);
+  const [mobileTab, setMobileTab] = useS("input");
+  const [sidebarOpen, setSidebarOpen] = useS(false);
   const [cfg, setCfg] = useS(null);
   const [analysisSource, setAnalysisSource] = useS({ mode: "chapters", chId: "" });
   const [streaming, setStreaming] = useS("");
@@ -1609,11 +1615,14 @@ ${c.content || ""}`).join("\n\n");
   const analysisContent = computeContent();
   return /* @__PURE__ */ jsxs("div", { className: "app-layout", children: [
     /* @__PURE__ */ jsxs("header", { className: "app-header", children: [
-      /* @__PURE__ */ jsx("div", { className: "header-left", children: /* @__PURE__ */ jsxs("div", { className: "logo", children: [
-        /* @__PURE__ */ jsx("span", { className: "logo-icon", children: "\u{1F3AC}" }),
-        /* @__PURE__ */ jsx("span", { className: "logo-text", children: "\u77ED\u5267\u811A\u672C\u5DE5\u574A" }),
-        /* @__PURE__ */ jsx("span", { className: "logo-badge", children: "v3.1" })
-      ] }) }),
+      /* @__PURE__ */ jsxs("div", { className: "header-left", children: [
+        /* @__PURE__ */ jsx("button", { className: "mobile-menu-btn", onClick: () => setSidebarOpen(true), children: "\u2630" }),
+        /* @__PURE__ */ jsxs("div", { className: "logo", children: [
+          /* @__PURE__ */ jsx("span", { className: "logo-icon", children: "\u{1F3AC}" }),
+          /* @__PURE__ */ jsx("span", { className: "logo-text", children: "\u77ED\u5267\u811A\u672C\u5DE5\u574A" }),
+          /* @__PURE__ */ jsx("span", { className: "logo-badge", children: "v3.1" })
+        ] })
+      ] }),
       /* @__PURE__ */ jsxs("div", { className: "header-right", children: [
         /* @__PURE__ */ jsxs("div", { className: "model-info", onClick: () => setSettingsOpen(true), children: [
           /* @__PURE__ */ jsx("span", { className: `model-dot ${hasProvider ? "" : "off"}` }),
@@ -1621,11 +1630,22 @@ ${c.content || ""}`).join("\n\n");
           /* @__PURE__ */ jsx("span", { children: "\u2699\uFE0F" })
         ] }),
         /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setSettingsOpen(true), children: "\u8BBE\u7F6E" })
+      ] }),
+      project && /* @__PURE__ */ jsxs("div", { className: "mobile-tabs", children: [
+        /* @__PURE__ */ jsx("button", { className: mobileTab === "input" ? "active" : "", onClick: () => setMobileTab("input"), children: "\u8F93\u5165" }),
+        /* @__PURE__ */ jsx("button", { className: mobileTab === "result" ? "active" : "", onClick: () => setMobileTab("result"), children: "\u7ED3\u679C" })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "app-body", children: [
-      /* @__PURE__ */ jsx(Sidebar, { projects, currentId, onSelect: loadProject, onNew: () => setNewOpen(true), onDelete: deleteProject, onImport: importProject, collapsed, onToggle: () => setCollapsed((c) => !c) }),
-      project ? /* @__PURE__ */ jsxs("div", { className: "main-area", children: [
+      sidebarOpen && /* @__PURE__ */ jsx("div", { className: "sidebar-overlay", onClick: () => setSidebarOpen(false) }),
+      /* @__PURE__ */ jsx(Sidebar, { projects, currentId, onSelect: (id) => {
+        loadProject(id);
+        setSidebarOpen(false);
+      }, onNew: () => {
+        setNewOpen(true);
+        setSidebarOpen(false);
+      }, onDelete: deleteProject, onImport: importProject, collapsed, onToggle: () => setCollapsed((c) => !c), mobileOpen: sidebarOpen, onCloseMobile: () => setSidebarOpen(false) }),
+      project ? /* @__PURE__ */ jsxs("div", { className: `main-area mobile-tab-${mobileTab}`, children: [
         /* @__PURE__ */ jsx(
           InputPanel,
           {
