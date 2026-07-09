@@ -593,7 +593,7 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
       </div>
       {view === 'table' ? (
         <table className="shots"><thead><tr>
-          <th className="num">集</th><th className="num">场</th><th className="num">镜</th><th>景别</th><th>画面</th><th>对白</th><th>动作</th><th>声音</th><th>转场</th><th className="num">秒</th><th>角色</th><th>场景</th><th className="prompt-cell">Prompt(中)</th><th className="prompt-cell">Prompt(英)</th><th></th>
+          <th className="num">集</th><th className="num">场</th><th className="num">镜</th><th>景别</th><th>画面</th><th>对白</th><th>动作</th><th>字幕</th><th>叙事</th><th>声音</th><th>转场</th><th>连贯</th><th className="num">秒</th><th>角色</th><th>场景</th><th className="prompt-cell">Prompt(中)</th><th className="prompt-cell">Prompt(英)</th><th></th>
         </tr></thead><tbody>
           {filtered.map((s, idx) => (
             <tr key={idx}>
@@ -602,8 +602,11 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
               <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'visual', e.target.textContent)}>{s.visual}</div></td>
               <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'dialogue', e.target.textContent)}>{s.dialogue}</div></td>
               <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'action', e.target.textContent)}>{s.action}</div></td>
+              <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'subtitle', e.target.textContent)}>{s.subtitle || ''}</div></td>
+              <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'narrativePurpose', e.target.textContent)}>{s.narrativePurpose || ''}</div></td>
               <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'soundDesign', e.target.textContent)}>{s.soundDesign}</div></td>
-              <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'transition', e.target.textContent)}>{s.transition}</div></td>
+              <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'nextShotTransition', e.target.textContent)}>{s.nextShotTransition || s.transition || ''}</div></td>
+              <td><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'continuityNote', e.target.textContent)}>{s.continuityNote || ''}</div></td>
               <td className="num"><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'duration', parseInt(e.target.textContent) || 0)}>{s.duration}</div></td>
               <td>{charName(s.characterNames)}</td><td>{s.sceneName}</td>
               <td className="prompt-cell"><div className="cell-edit" contentEditable suppressContentEditableWarning onBlur={e => update(idx, 'promptZh', e.target.textContent)}>{s.promptZh}</div></td>
@@ -622,10 +625,14 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
           {filtered.map((s, idx) => (
             <div key={idx} className="shot-tile">
               <div className="tile-head"><span>第{s.episode}集·{s.sceneNo}场·{s.shotNo}镜</span><span className="badge">{s.shotType} {s.duration}s</span></div>
+              {s.narrativePurpose && <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ai-primary)', marginBottom: 4 }}>🎯 {s.narrativePurpose}</div>}
               <div className="tile-visual">{s.visual}</div>
+              {s.action && <div style={{ fontSize: 11, color: 'var(--ai-text)', marginBottom: 4 }}>🏃 {s.action}</div>}
               {s.dialogue && <div style={{ fontSize: 12, color: 'var(--ai-text-muted)' }}>「{s.dialogue}」</div>}
+              {s.subtitle && s.subtitle !== s.dialogue && <div style={{ fontSize: 11, color: 'var(--ai-text-secondary)' }}>📝 {s.subtitle}</div>}
               {s.soundDesign && <div style={{ fontSize: 11, color: 'var(--ai-text-muted)' }}>🔊 {s.soundDesign}</div>}
-              {s.transition && <div style={{ fontSize: 11, color: 'var(--ai-text-muted)' }}>→ {s.transition}</div>}
+              {s.continuityNote && <div style={{ fontSize: 11, color: 'var(--ai-warning)', borderTop: '1px dashed var(--ai-border-light)', paddingTop: 4, marginTop: 4 }}>🔗 {s.continuityNote}</div>}
+              {s.nextShotTransition && <div style={{ fontSize: 11, color: 'var(--ai-text-muted)' }}>→ {s.nextShotTransition}</div>}
               <div className="tile-prompt"><b>中</b>：{s.promptZh}<br /><b>EN</b>：{s.promptEn}</div>
               <div className="tile-actions">
                 <Button size="small" onClick={() => { navigator.clipboard?.writeText(s.promptEn); toast('已复制EN', 'ok'); }}>复制EN</Button>
@@ -725,15 +732,22 @@ function MediaGen({ styles, project, characters, scenes }) {
 
   const pollVideo = async (videoId) => {
     let attempts = 0;
+    let delay = 10000; // 初始10秒，避免429限流
     const poll = async () => {
       attempts++;
       try {
         const r = await api.getVideo(videoId);
         if (!r.ok) { setErr(r.error); setVidPolling(false); return; }
+        // 429限流：不更新状态，延长等待后重试
+        if (r.rate_limited) {
+          if (attempts < 60) { pollRef.current = setTimeout(poll, Math.min(delay * 1.5, 30000)); }
+          else { setErr('视频生成超时(限流)'); setVidPolling(false); }
+          return;
+        }
         setVidTask({ video_id: videoId, status: r.status, progress: r.progress || 0, url: r.url || null, seconds: r.seconds, size: r.size });
         if (r.status === 'completed') { setVidPolling(false); toast('视频生成完成', 'ok'); return; }
         if (r.status === 'failed') { setErr('视频生成失败'); setVidPolling(false); return; }
-        if (attempts < 120) { pollRef.current = setTimeout(poll, 3000); }
+        if (attempts < 60) { pollRef.current = setTimeout(poll, delay); }
         else { setErr('视频生成超时'); setVidPolling(false); }
       } catch (e) { setErr(e.message); setVidPolling(false); }
     };

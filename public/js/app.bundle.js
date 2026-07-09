@@ -1335,8 +1335,11 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
         /* @__PURE__ */ jsx("th", { children: "\u753B\u9762" }),
         /* @__PURE__ */ jsx("th", { children: "\u5BF9\u767D" }),
         /* @__PURE__ */ jsx("th", { children: "\u52A8\u4F5C" }),
+        /* @__PURE__ */ jsx("th", { children: "\u5B57\u5E55" }),
+        /* @__PURE__ */ jsx("th", { children: "\u53D9\u4E8B" }),
         /* @__PURE__ */ jsx("th", { children: "\u58F0\u97F3" }),
         /* @__PURE__ */ jsx("th", { children: "\u8F6C\u573A" }),
+        /* @__PURE__ */ jsx("th", { children: "\u8FDE\u8D2F" }),
         /* @__PURE__ */ jsx("th", { className: "num", children: "\u79D2" }),
         /* @__PURE__ */ jsx("th", { children: "\u89D2\u8272" }),
         /* @__PURE__ */ jsx("th", { children: "\u573A\u666F" }),
@@ -1352,8 +1355,11 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
         /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "visual", e.target.textContent), children: s.visual }) }),
         /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "dialogue", e.target.textContent), children: s.dialogue }) }),
         /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "action", e.target.textContent), children: s.action }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "subtitle", e.target.textContent), children: s.subtitle || "" }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "narrativePurpose", e.target.textContent), children: s.narrativePurpose || "" }) }),
         /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "soundDesign", e.target.textContent), children: s.soundDesign }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "transition", e.target.textContent), children: s.transition }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "nextShotTransition", e.target.textContent), children: s.nextShotTransition || s.transition || "" }) }),
+        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "continuityNote", e.target.textContent), children: s.continuityNote || "" }) }),
         /* @__PURE__ */ jsx("td", { className: "num", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "duration", parseInt(e.target.textContent) || 0), children: s.duration }) }),
         /* @__PURE__ */ jsx("td", { children: charName(s.characterNames) }),
         /* @__PURE__ */ jsx("td", { children: s.sceneName }),
@@ -1387,19 +1393,35 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
           "s"
         ] })
       ] }),
+      s.narrativePurpose && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--ai-primary)", marginBottom: 4 }, children: [
+        "\u{1F3AF} ",
+        s.narrativePurpose
+      ] }),
       /* @__PURE__ */ jsx("div", { className: "tile-visual", children: s.visual }),
+      s.action && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text)", marginBottom: 4 }, children: [
+        "\u{1F3C3} ",
+        s.action
+      ] }),
       s.dialogue && /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, color: "var(--ai-text-muted)" }, children: [
         "\u300C",
         s.dialogue,
         "\u300D"
       ] }),
+      s.subtitle && s.subtitle !== s.dialogue && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-secondary)" }, children: [
+        "\u{1F4DD} ",
+        s.subtitle
+      ] }),
       s.soundDesign && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
         "\u{1F50A} ",
         s.soundDesign
       ] }),
-      s.transition && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+      s.continuityNote && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-warning)", borderTop: "1px dashed var(--ai-border-light)", paddingTop: 4, marginTop: 4 }, children: [
+        "\u{1F517} ",
+        s.continuityNote
+      ] }),
+      s.nextShotTransition && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
         "\u2192 ",
-        s.transition
+        s.nextShotTransition
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "tile-prompt", children: [
         /* @__PURE__ */ jsx("b", { children: "\u4E2D" }),
@@ -1537,6 +1559,7 @@ function MediaGen({ styles, project, characters, scenes }) {
   };
   const pollVideo = async (videoId) => {
     let attempts = 0;
+    let delay = 1e4;
     const poll = async () => {
       attempts++;
       try {
@@ -1544,6 +1567,15 @@ function MediaGen({ styles, project, characters, scenes }) {
         if (!r.ok) {
           setErr(r.error);
           setVidPolling(false);
+          return;
+        }
+        if (r.rate_limited) {
+          if (attempts < 60) {
+            pollRef.current = setTimeout(poll, Math.min(delay * 1.5, 3e4));
+          } else {
+            setErr("\u89C6\u9891\u751F\u6210\u8D85\u65F6(\u9650\u6D41)");
+            setVidPolling(false);
+          }
           return;
         }
         setVidTask({ video_id: videoId, status: r.status, progress: r.progress || 0, url: r.url || null, seconds: r.seconds, size: r.size });
@@ -1557,8 +1589,8 @@ function MediaGen({ styles, project, characters, scenes }) {
           setVidPolling(false);
           return;
         }
-        if (attempts < 120) {
-          pollRef.current = setTimeout(poll, 3e3);
+        if (attempts < 60) {
+          pollRef.current = setTimeout(poll, delay);
         } else {
           setErr("\u89C6\u9891\u751F\u6210\u8D85\u65F6");
           setVidPolling(false);
