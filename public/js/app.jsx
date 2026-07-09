@@ -101,7 +101,7 @@ function NewProjectModal({ open, onClose, onCreate }) {
   );
 }
 
-// ============ Settings Modal (直接显示+媒体provider) ============
+// ============ Settings Modal (LLM + 媒体生图/生视频) ============
 function SettingsModal({ open, onClose, onSaved }) {
   const [cfg, setCfg] = useS(null);
   const [testing, setTesting] = useS(null);
@@ -112,9 +112,10 @@ function SettingsModal({ open, onClose, onSaved }) {
 
   const llmProviders = cfg.providers.filter(p => p.type !== 'media');
   const mediaProviders = cfg.providers.filter(p => p.type === 'media');
+  const findPreset = (id) => cfg.presets?.find(p => p.id === id);
 
   const updateProvider = (id, field, val) => setCfg(c => ({ ...c, providers: c.providers.map(p => p.id === id ? { ...p, [field]: val } : p) }));
-  const addProvider = (type) => setCfg(c => ({ ...c, providers: [...c.providers, { id: 'prov_' + Date.now().toString(36), name: '新' + (type === 'media' ? '媒体' : 'LLM') + '提供商', baseUrl: '', apiKey: '', model: '', type }] }));
+  const addProvider = (type) => setCfg(c => ({ ...c, providers: [...c.providers, { id: 'prov_' + Date.now().toString(36), name: '自定义' + (type === 'media' ? '媒体' : 'LLM'), baseUrl: '', apiKey: '', model: '', type }] }));
   const delProvider = (id) => setCfg(c => ({ ...c, providers: c.providers.filter(p => p.id !== id) }));
   const addPreset = (preset) => { if (cfg.providers.find(p => p.id === preset.id)) return; setCfg(c => ({ ...c, providers: [...c.providers, { ...preset, type: preset.type || 'llm', apiKey: '' }] })); };
   const save = async () => { await api.saveConfig(cfg); toast('配置已保存', 'ok'); onSaved?.(); onClose(); };
@@ -125,46 +126,87 @@ function SettingsModal({ open, onClose, onSaved }) {
     setTestRes(r); setTesting(null);
   };
 
-  const renderProvider = (p, isMedia) => (
-    <div key={p.id} className={`provider-row ${(!isMedia && p.id === cfg.activeProvider) || (isMedia && p.id === cfg.mediaProvider) ? 'active' : ''}`}>
-      <div className="field-mini"><label>名称</label><Input size="small" value={p.name} onChange={e => updateProvider(p.id, 'name', e.target.value)} /></div>
-      <div className="field-mini" style={{ flex: 2 }}><label>Base URL</label><Input size="small" value={p.baseUrl} onChange={e => updateProvider(p.id, 'baseUrl', e.target.value)} placeholder="https://..." /></div>
-      <div className="field-mini" style={{ flex: 1.5 }}><label>API Key</label><Input size="small" type="password" value={p.apiKey} onChange={e => updateProvider(p.id, 'apiKey', e.target.value)} placeholder="sk-..." /></div>
-      <div className="field-mini" style={{ flex: 1 }}><label>模型</label><Input size="small" value={p.model} onChange={e => updateProvider(p.id, 'model', e.target.value)} /></div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <Button size="small" type={(!isMedia && p.id === cfg.activeProvider) || (isMedia && p.id === cfg.mediaProvider) ? 'primary' : 'default'} onClick={() => setCfg(c => ({ ...c, [isMedia ? 'mediaProvider' : 'activeProvider']: p.id }))}>
-          {(!isMedia && p.id === cfg.activeProvider) || (isMedia && p.id === cfg.mediaProvider) ? '✓ 主' : '设为主'}
-        </Button>
-        <Button size="small" loading={testing === p.id} onClick={() => test(p)}>测</Button>
-        <Button size="small" danger onClick={() => delProvider(p.id)}>删</Button>
+  // 模型下拉选择（预设模型列表 + 自定义输入）
+  const modelSelect = (p) => {
+    const preset = findPreset(p.id);
+    const models = preset?.models || [];
+    return (
+      <div className="field-mini" style={{ flex: 1 }}>
+        <label>模型</label>
+        {models.length > 0 ? (
+          <select value={p.model || ''} onChange={e => updateProvider(p.id, 'model', e.target.value)} style={{ width: '100%', padding: '4px 8px', border: '1px solid var(--ai-border)', borderRadius: 6, fontSize: 12 }}>
+            <option value="">{preset?.defaultModel || '选择模型...'}</option>
+            {models.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        ) : (
+          <Input size="small" value={p.model} onChange={e => updateProvider(p.id, 'model', e.target.value)} placeholder="模型名" />
+        )}
       </div>
-      {testRes[p.id] && <div style={{ flexBasis: '100%', fontSize: 11, color: testRes[p.id].ok ? 'var(--ai-success)' : 'var(--ai-error)' }}>{testRes[p.id].ok ? '✓ 连接成功' : '✗ ' + (testRes[p.id].error || '失败')}</div>}
-    </div>
-  );
+    );
+  };
+
+  const renderProvider = (p, isMedia) => {
+    const isActive = (!isMedia && p.id === cfg.activeProvider) || (isMedia && p.id === cfg.mediaProvider);
+    const preset = findPreset(p.id);
+    const desc = preset ? `${preset.name}` : '';
+    return (
+      <div key={p.id} className={`provider-row ${isActive ? 'active' : ''}`}>
+        <div className="field-mini" style={{ flex: 1.5 }}><label>名称 {desc && <span style={{ color: 'var(--ai-primary)', fontSize: 10 }}>({desc})</span>}</label><Input size="small" value={p.name} onChange={e => updateProvider(p.id, 'name', e.target.value)} /></div>
+        <div className="field-mini" style={{ flex: 2 }}><label>Base URL</label><Input size="small" value={p.baseUrl} onChange={e => updateProvider(p.id, 'baseUrl', e.target.value)} placeholder="https://..." /></div>
+        <div className="field-mini" style={{ flex: 1.5 }}><label>API Key {p.apiKey && <span style={{ color: 'var(--ai-success)', fontSize: 10 }}>✓已填</span>}</label><Input size="small" type="password" value={p.apiKey} onChange={e => updateProvider(p.id, 'apiKey', e.target.value)} placeholder="sk-..." /></div>
+        {modelSelect(p)}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 60 }}>
+          <Button size="small" type={isActive ? 'primary' : 'default'} onClick={() => setCfg(c => ({ ...c, [isMedia ? 'mediaProvider' : 'activeProvider']: p.id }))}>
+            {isActive ? '✓ 主' : '设为主'}
+          </Button>
+          <Button size="small" loading={testing === p.id} onClick={() => test(p)}>测试</Button>
+          <Button size="small" danger onClick={() => delProvider(p.id)}>删</Button>
+        </div>
+        {testRes[p.id] && <div style={{ flexBasis: '100%', fontSize: 11, color: testRes[p.id].ok ? 'var(--ai-success)' : 'var(--ai-error)' }}>{testRes[p.id].ok ? '✓ 连接成功: ' + (testRes[p.id].reply || '').slice(0, 50) : '✗ ' + (testRes[p.id].error || '失败')}</div>}
+      </div>
+    );
+  };
 
   return (
-    <Modal open={open} title="⚙️ 设置" typewriter={false} onClose={onClose} onOk={save} okText="保存" cancelText="取消" width={720}>
+    <Modal open={open} title="⚙️ 模型配置" typewriter={false} onClose={onClose} onOk={save} okText="保存" cancelText="取消" width={760}>
       <div className="settings-body modal-content">
-        <div className="card-title">📚 LLM 文本模型</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          {cfg.presets.filter(p => p.type !== 'media').map(p => (
-            <Button key={p.id} size="small" onClick={() => addPreset(p)} disabled={!!cfg.providers.find(x => x.id === p.id)}>{p.name}</Button>
-          ))}
+        {/* LLM 文本模型 */}
+        <div className="settings-section">
+          <div className="card-title">📚 LLM 文本模型（用于剧情分析/角色/场景/分镜/脚本生成）</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            {cfg.presets.filter(p => p.type !== 'media').map(p => (
+              <Button key={p.id} size="small" onClick={() => addPreset(p)} disabled={!!cfg.providers.find(x => x.id === p.id)}>+ {p.name}</Button>
+            ))}
+          </div>
+          {llmProviders.length === 0 && <div className="settings-hint">未配置LLM，点击上方预设按钮添加（推荐 Agnes 2.0 Flash 或 DeepSeek）</div>}
+          {llmProviders.map(p => renderProvider(p, false))}
+          <Button size="small" onClick={() => addProvider('llm')} style={{ marginTop: 6 }}>+ 自定义LLM</Button>
         </div>
-        {llmProviders.map(p => renderProvider(p, false))}
-        <Button size="small" onClick={() => addProvider('llm')} style={{ marginTop: 6 }}>+ 自定义LLM</Button>
 
-        <div className="card-title" style={{ marginTop: 18 }}>🖼️ 媒体生成（Agnes/DALL·E 生图生视频）</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-          {cfg.presets.filter(p => p.type === 'media').map(p => (
-            <Button key={p.id} size="small" onClick={() => addPreset(p)} disabled={!!cfg.providers.find(x => x.id === p.id)}>{p.name}</Button>
-          ))}
+        {/* 媒体生成模型 */}
+        <div className="settings-section" style={{ marginTop: 18 }}>
+          <div className="card-title">🎨 媒体生成模型（用于AI生图/图生图/生视频/图生视频）</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            {cfg.presets.filter(p => p.type === 'media').map(p => (
+              <Button key={p.id} size="small" onClick={() => addPreset(p)} disabled={!!cfg.providers.find(x => x.id === p.id)}>+ {p.name}</Button>
+            ))}
+          </div>
+          {mediaProviders.length === 0 && <div className="settings-hint">未配置媒体模型，点击上方预设添加 Agnes AI（推荐，生图+生视频免费）</div>}
+          {mediaProviders.map(p => renderProvider(p, true))}
+          <Button size="small" onClick={() => addProvider('media')} style={{ marginTop: 6 }}>+ 自定义媒体</Button>
         </div>
-        {mediaProviders.length === 0 && <div style={{ fontSize: 12, color: 'var(--ai-text-muted)', padding: 8 }}>未配置媒体提供商，点击上方预设添加 Agnes AI 或 DALL·E</div>}
-        {mediaProviders.map(p => renderProvider(p, true))}
-        <Button size="small" onClick={() => addProvider('media')} style={{ marginTop: 6 }}>+ 自定义媒体</Button>
 
-        <p style={{ fontSize: 11, color: 'var(--ai-text-muted)', marginTop: 14 }}>Key 存储在服务端 data/config.json，前端仅显示脱敏。媒体用于 AI 生图/生视频。</p>
+        {/* 模型说明 */}
+        <div className="settings-section" style={{ marginTop: 18 }}>
+          <div className="card-title">📖 模型说明</div>
+          <div className="settings-help">
+            <div><b>agnes-2.0-flash</b> — Agnes文本模型，512K上下文，支持图像理解/工具调用/流式输出</div>
+            <div><b>agnes-image-2.1-flash</b> — Agnes生图模型，文生图/图生图，支持高信息密度复杂构图，免费</div>
+            <div><b>agnes-video-v2.0</b> — Agnes视频模型，文生视频/图生视频/关键帧动画，异步任务，免费</div>
+            <div><b>deepseek-chat</b> — DeepSeek文本模型，性价比高</div>
+            <div style={{ marginTop: 6, color: 'var(--ai-text-muted)' }}>API Key 存储在服务端 data/config.json，前端脱敏显示。生图默认用 agnes-image-2.1-flash，生视频默认用 agnes-video-v2.0。</div>
+          </div>
+        </div>
       </div>
     </Modal>
   );

@@ -757,8 +757,9 @@ function SettingsModal({ open, onClose, onSaved }) {
   if (!open || !cfg) return null;
   const llmProviders = cfg.providers.filter((p) => p.type !== "media");
   const mediaProviders = cfg.providers.filter((p) => p.type === "media");
+  const findPreset = (id) => cfg.presets?.find((p) => p.id === id);
   const updateProvider = (id, field, val) => setCfg((c) => ({ ...c, providers: c.providers.map((p) => p.id === id ? { ...p, [field]: val } : p) }));
-  const addProvider = (type) => setCfg((c) => ({ ...c, providers: [...c.providers, { id: "prov_" + Date.now().toString(36), name: "\u65B0" + (type === "media" ? "\u5A92\u4F53" : "LLM") + "\u63D0\u4F9B\u5546", baseUrl: "", apiKey: "", model: "", type }] }));
+  const addProvider = (type) => setCfg((c) => ({ ...c, providers: [...c.providers, { id: "prov_" + Date.now().toString(36), name: "\u81EA\u5B9A\u4E49" + (type === "media" ? "\u5A92\u4F53" : "LLM"), baseUrl: "", apiKey: "", model: "", type }] }));
   const delProvider = (id) => setCfg((c) => ({ ...c, providers: c.providers.filter((p) => p.id !== id) }));
   const addPreset = (preset) => {
     if (cfg.providers.find((p) => p.id === preset.id)) return;
@@ -785,41 +786,96 @@ function SettingsModal({ open, onClose, onSaved }) {
     setTestRes(r);
     setTesting(null);
   };
-  const renderProvider = (p, isMedia) => /* @__PURE__ */ jsxs("div", { className: `provider-row ${!isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "active" : ""}`, children: [
-    /* @__PURE__ */ jsxs("div", { className: "field-mini", children: [
-      /* @__PURE__ */ jsx("label", { children: "\u540D\u79F0" }),
-      /* @__PURE__ */ jsx(Input, { size: "small", value: p.name, onChange: (e) => updateProvider(p.id, "name", e.target.value) })
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 2 }, children: [
-      /* @__PURE__ */ jsx("label", { children: "Base URL" }),
-      /* @__PURE__ */ jsx(Input, { size: "small", value: p.baseUrl, onChange: (e) => updateProvider(p.id, "baseUrl", e.target.value), placeholder: "https://..." })
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1.5 }, children: [
-      /* @__PURE__ */ jsx("label", { children: "API Key" }),
-      /* @__PURE__ */ jsx(Input, { size: "small", type: "password", value: p.apiKey, onChange: (e) => updateProvider(p.id, "apiKey", e.target.value), placeholder: "sk-..." })
-    ] }),
-    /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1 }, children: [
+  const modelSelect = (p) => {
+    const preset = findPreset(p.id);
+    const models = preset?.models || [];
+    return /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1 }, children: [
       /* @__PURE__ */ jsx("label", { children: "\u6A21\u578B" }),
-      /* @__PURE__ */ jsx(Input, { size: "small", value: p.model, onChange: (e) => updateProvider(p.id, "model", e.target.value) })
+      models.length > 0 ? /* @__PURE__ */ jsxs("select", { value: p.model || "", onChange: (e) => updateProvider(p.id, "model", e.target.value), style: { width: "100%", padding: "4px 8px", border: "1px solid var(--ai-border)", borderRadius: 6, fontSize: 12 }, children: [
+        /* @__PURE__ */ jsx("option", { value: "", children: preset?.defaultModel || "\u9009\u62E9\u6A21\u578B..." }),
+        models.map((m) => /* @__PURE__ */ jsx("option", { value: m, children: m }, m))
+      ] }) : /* @__PURE__ */ jsx(Input, { size: "small", value: p.model, onChange: (e) => updateProvider(p.id, "model", e.target.value), placeholder: "\u6A21\u578B\u540D" })
+    ] });
+  };
+  const renderProvider = (p, isMedia) => {
+    const isActive = !isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider;
+    const preset = findPreset(p.id);
+    const desc = preset ? `${preset.name}` : "";
+    return /* @__PURE__ */ jsxs("div", { className: `provider-row ${isActive ? "active" : ""}`, children: [
+      /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1.5 }, children: [
+        /* @__PURE__ */ jsxs("label", { children: [
+          "\u540D\u79F0 ",
+          desc && /* @__PURE__ */ jsxs("span", { style: { color: "var(--ai-primary)", fontSize: 10 }, children: [
+            "(",
+            desc,
+            ")"
+          ] })
+        ] }),
+        /* @__PURE__ */ jsx(Input, { size: "small", value: p.name, onChange: (e) => updateProvider(p.id, "name", e.target.value) })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 2 }, children: [
+        /* @__PURE__ */ jsx("label", { children: "Base URL" }),
+        /* @__PURE__ */ jsx(Input, { size: "small", value: p.baseUrl, onChange: (e) => updateProvider(p.id, "baseUrl", e.target.value), placeholder: "https://..." })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { className: "field-mini", style: { flex: 1.5 }, children: [
+        /* @__PURE__ */ jsxs("label", { children: [
+          "API Key ",
+          p.apiKey && /* @__PURE__ */ jsx("span", { style: { color: "var(--ai-success)", fontSize: 10 }, children: "\u2713\u5DF2\u586B" })
+        ] }),
+        /* @__PURE__ */ jsx(Input, { size: "small", type: "password", value: p.apiKey, onChange: (e) => updateProvider(p.id, "apiKey", e.target.value), placeholder: "sk-..." })
+      ] }),
+      modelSelect(p),
+      /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4, minWidth: 60 }, children: [
+        /* @__PURE__ */ jsx(Button, { size: "small", type: isActive ? "primary" : "default", onClick: () => setCfg((c) => ({ ...c, [isMedia ? "mediaProvider" : "activeProvider"]: p.id })), children: isActive ? "\u2713 \u4E3B" : "\u8BBE\u4E3A\u4E3B" }),
+        /* @__PURE__ */ jsx(Button, { size: "small", loading: testing === p.id, onClick: () => test(p), children: "\u6D4B\u8BD5" }),
+        /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => delProvider(p.id), children: "\u5220" })
+      ] }),
+      testRes[p.id] && /* @__PURE__ */ jsx("div", { style: { flexBasis: "100%", fontSize: 11, color: testRes[p.id].ok ? "var(--ai-success)" : "var(--ai-error)" }, children: testRes[p.id].ok ? "\u2713 \u8FDE\u63A5\u6210\u529F: " + (testRes[p.id].reply || "").slice(0, 50) : "\u2717 " + (testRes[p.id].error || "\u5931\u8D25") })
+    ] }, p.id);
+  };
+  return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u6A21\u578B\u914D\u7F6E", typewriter: false, onClose, onOk: save, okText: "\u4FDD\u5B58", cancelText: "\u53D6\u6D88", width: 760, children: /* @__PURE__ */ jsxs("div", { className: "settings-body modal-content", children: [
+    /* @__PURE__ */ jsxs("div", { className: "settings-section", children: [
+      /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4DA} LLM \u6587\u672C\u6A21\u578B\uFF08\u7528\u4E8E\u5267\u60C5\u5206\u6790/\u89D2\u8272/\u573A\u666F/\u5206\u955C/\u811A\u672C\u751F\u6210\uFF09" }),
+      /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type !== "media").map((p) => /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: [
+        "+ ",
+        p.name
+      ] }, p.id)) }),
+      llmProviders.length === 0 && /* @__PURE__ */ jsx("div", { className: "settings-hint", children: "\u672A\u914D\u7F6ELLM\uFF0C\u70B9\u51FB\u4E0A\u65B9\u9884\u8BBE\u6309\u94AE\u6DFB\u52A0\uFF08\u63A8\u8350 Agnes 2.0 Flash \u6216 DeepSeek\uFF09" }),
+      llmProviders.map((p) => renderProvider(p, false)),
+      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("llm"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49LLM" })
     ] }),
-    /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
-      /* @__PURE__ */ jsx(Button, { size: "small", type: !isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "primary" : "default", onClick: () => setCfg((c) => ({ ...c, [isMedia ? "mediaProvider" : "activeProvider"]: p.id })), children: !isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider ? "\u2713 \u4E3B" : "\u8BBE\u4E3A\u4E3B" }),
-      /* @__PURE__ */ jsx(Button, { size: "small", loading: testing === p.id, onClick: () => test(p), children: "\u6D4B" }),
-      /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => delProvider(p.id), children: "\u5220" })
+    /* @__PURE__ */ jsxs("div", { className: "settings-section", style: { marginTop: 18 }, children: [
+      /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F3A8} \u5A92\u4F53\u751F\u6210\u6A21\u578B\uFF08\u7528\u4E8EAI\u751F\u56FE/\u56FE\u751F\u56FE/\u751F\u89C6\u9891/\u56FE\u751F\u89C6\u9891\uFF09" }),
+      /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type === "media").map((p) => /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: [
+        "+ ",
+        p.name
+      ] }, p.id)) }),
+      mediaProviders.length === 0 && /* @__PURE__ */ jsx("div", { className: "settings-hint", children: "\u672A\u914D\u7F6E\u5A92\u4F53\u6A21\u578B\uFF0C\u70B9\u51FB\u4E0A\u65B9\u9884\u8BBE\u6DFB\u52A0 Agnes AI\uFF08\u63A8\u8350\uFF0C\u751F\u56FE+\u751F\u89C6\u9891\u514D\u8D39\uFF09" }),
+      mediaProviders.map((p) => renderProvider(p, true)),
+      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("media"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49\u5A92\u4F53" })
     ] }),
-    testRes[p.id] && /* @__PURE__ */ jsx("div", { style: { flexBasis: "100%", fontSize: 11, color: testRes[p.id].ok ? "var(--ai-success)" : "var(--ai-error)" }, children: testRes[p.id].ok ? "\u2713 \u8FDE\u63A5\u6210\u529F" : "\u2717 " + (testRes[p.id].error || "\u5931\u8D25") })
-  ] }, p.id);
-  return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u8BBE\u7F6E", typewriter: false, onClose, onOk: save, okText: "\u4FDD\u5B58", cancelText: "\u53D6\u6D88", width: 720, children: /* @__PURE__ */ jsxs("div", { className: "settings-body modal-content", children: [
-    /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4DA} LLM \u6587\u672C\u6A21\u578B" }),
-    /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type !== "media").map((p) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: p.name }, p.id)) }),
-    llmProviders.map((p) => renderProvider(p, false)),
-    /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("llm"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49LLM" }),
-    /* @__PURE__ */ jsx("div", { className: "card-title", style: { marginTop: 18 }, children: "\u{1F5BC}\uFE0F \u5A92\u4F53\u751F\u6210\uFF08Agnes/DALL\xB7E \u751F\u56FE\u751F\u89C6\u9891\uFF09" }),
-    /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type === "media").map((p) => /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: p.name }, p.id)) }),
-    mediaProviders.length === 0 && /* @__PURE__ */ jsx("div", { style: { fontSize: 12, color: "var(--ai-text-muted)", padding: 8 }, children: "\u672A\u914D\u7F6E\u5A92\u4F53\u63D0\u4F9B\u5546\uFF0C\u70B9\u51FB\u4E0A\u65B9\u9884\u8BBE\u6DFB\u52A0 Agnes AI \u6216 DALL\xB7E" }),
-    mediaProviders.map((p) => renderProvider(p, true)),
-    /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("media"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49\u5A92\u4F53" }),
-    /* @__PURE__ */ jsx("p", { style: { fontSize: 11, color: "var(--ai-text-muted)", marginTop: 14 }, children: "Key \u5B58\u50A8\u5728\u670D\u52A1\u7AEF data/config.json\uFF0C\u524D\u7AEF\u4EC5\u663E\u793A\u8131\u654F\u3002\u5A92\u4F53\u7528\u4E8E AI \u751F\u56FE/\u751F\u89C6\u9891\u3002" })
+    /* @__PURE__ */ jsxs("div", { className: "settings-section", style: { marginTop: 18 }, children: [
+      /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4D6} \u6A21\u578B\u8BF4\u660E" }),
+      /* @__PURE__ */ jsxs("div", { className: "settings-help", children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("b", { children: "agnes-2.0-flash" }),
+          " \u2014 Agnes\u6587\u672C\u6A21\u578B\uFF0C512K\u4E0A\u4E0B\u6587\uFF0C\u652F\u6301\u56FE\u50CF\u7406\u89E3/\u5DE5\u5177\u8C03\u7528/\u6D41\u5F0F\u8F93\u51FA"
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("b", { children: "agnes-image-2.1-flash" }),
+          " \u2014 Agnes\u751F\u56FE\u6A21\u578B\uFF0C\u6587\u751F\u56FE/\u56FE\u751F\u56FE\uFF0C\u652F\u6301\u9AD8\u4FE1\u606F\u5BC6\u5EA6\u590D\u6742\u6784\u56FE\uFF0C\u514D\u8D39"
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("b", { children: "agnes-video-v2.0" }),
+          " \u2014 Agnes\u89C6\u9891\u6A21\u578B\uFF0C\u6587\u751F\u89C6\u9891/\u56FE\u751F\u89C6\u9891/\u5173\u952E\u5E27\u52A8\u753B\uFF0C\u5F02\u6B65\u4EFB\u52A1\uFF0C\u514D\u8D39"
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("b", { children: "deepseek-chat" }),
+          " \u2014 DeepSeek\u6587\u672C\u6A21\u578B\uFF0C\u6027\u4EF7\u6BD4\u9AD8"
+        ] }),
+        /* @__PURE__ */ jsx("div", { style: { marginTop: 6, color: "var(--ai-text-muted)" }, children: "API Key \u5B58\u50A8\u5728\u670D\u52A1\u7AEF data/config.json\uFF0C\u524D\u7AEF\u8131\u654F\u663E\u793A\u3002\u751F\u56FE\u9ED8\u8BA4\u7528 agnes-image-2.1-flash\uFF0C\u751F\u89C6\u9891\u9ED8\u8BA4\u7528 agnes-video-v2.0\u3002" })
+      ] })
+    ] })
   ] }) });
 }
 function ChapterManager({ project, onUpdate }) {

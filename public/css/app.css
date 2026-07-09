@@ -353,14 +353,20 @@ table.shots .num { width: 40px; text-align: center; }
 
 /* Settings modal content */
 .settings-body { max-height: 70vh; overflow-y: auto; padding-right: 6px; }
-.provider-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 10px; padding: 12px; background: var(--ai-bg); border-radius: var(--ai-r-sm); border: 1px solid var(--ai-border-light); transition: all .15s; }
+.settings-section { margin-bottom: 4px; }
+.settings-hint { font-size: 12px; color: 'var(--ai-text-muted)'; padding: 10px 8px; background: var(--ai-bg-content); border-radius: 8px; border: 1px dashed var(--ai-border); }
+.settings-help { font-size: 12px; color: var(--ai-text-body); line-height: 1.8; padding: 12px; background: var(--ai-bg-content); border-radius: 8px; border: 1px solid var(--ai-border-light); }
+.settings-help b { color: var(--ai-primary); font-family: monospace; }
+.provider-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; padding: 12px; background: var(--ai-bg); border-radius: var(--ai-r-sm); border: 1px solid var(--ai-border-light); transition: all .15s; }
 .provider-row.active { border-color: var(--ai-primary); background: var(--ai-primary-bg); box-shadow: 0 0 0 1px var(--ai-primary); }
-.provider-row .field-mini { flex: 1; }
+.provider-row .field-mini { flex: 1; min-width: 100px; }
 .provider-row .field-mini label { font-size: 11px; color: var(--ai-text-muted); display: block; margin-bottom: 3px; font-weight: 600; }
 .provider-row .field-mini [class*="animal-wrapper-"] { width: 100% !important; }
 .provider-row .field-mini [class*="animal-input-"] { font-size: 12px !important; }
 .provider-row .field-mini input { width: 100%; border: 1px solid var(--ai-border); border-radius: 6px; padding: 5px 8px; font-size: 12px; background: var(--ai-bg-card); color: var(--ai-text-body); outline: none; font-family: inherit; }
 .provider-row .field-mini input:focus { border-color: var(--ai-primary); box-shadow: 0 0 0 2px var(--ai-primary-bg); }
+.provider-row .field-mini select { width: 100%; border: 1px solid var(--ai-border); border-radius: 6px; padding: 5px 8px; font-size: 12px; background: var(--ai-bg-card); color: var(--ai-text-body); outline: none; font-family: inherit; }
+.provider-row .field-mini select:focus { border-color: var(--ai-primary); }
 
 .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; }
 .module-chip { padding: 8px; border: 2px solid var(--ai-border); border-radius: var(--ai-r-sm); cursor: pointer; text-align: center; font-size: 12px; font-weight: 700; color: var(--ai-text-secondary); transition: all .15s; background: var(--ai-bg-content); }
