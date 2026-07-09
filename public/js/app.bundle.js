@@ -1635,10 +1635,13 @@ ${c.content || ""}`).join("\n\n");
       /* @__PURE__ */ jsxs("div", { className: "header-right", children: [
         /* @__PURE__ */ jsxs("div", { className: "model-info", onClick: () => setSettingsOpen(true), children: [
           /* @__PURE__ */ jsx("span", { className: `model-dot ${hasProvider ? "" : "off"}` }),
-          /* @__PURE__ */ jsx("span", { children: hasProvider ? cfg.providers.find((p) => p.id === cfg.activeProvider)?.name || "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E\u6A21\u578B" }),
-          /* @__PURE__ */ jsx("span", { children: "\u2699\uFE0F" })
+          /* @__PURE__ */ jsx("span", { className: "model-name-text", children: hasProvider ? cfg.providers.find((p) => p.id === cfg.activeProvider)?.name || "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E\u6A21\u578B" }),
+          /* @__PURE__ */ jsx("span", { className: "model-gear", children: "\u2699\uFE0F" })
         ] }),
-        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setSettingsOpen(true), children: "\u8BBE\u7F6E" })
+        /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => setSettingsOpen(true), children: [
+          /* @__PURE__ */ jsx("span", { className: "settings-text", children: "\u8BBE\u7F6E" }),
+          /* @__PURE__ */ jsx("span", { className: "settings-icon", children: "\u2699\uFE0F" })
+        ] })
       ] }),
       project && /* @__PURE__ */ jsxs("div", { className: "mobile-tabs", children: [
         /* @__PURE__ */ jsx("button", { className: mobileTab === "input" ? "active" : "", onClick: () => setMobileTab("input"), children: "\u8F93\u5165" }),

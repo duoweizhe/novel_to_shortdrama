@@ -137,21 +137,27 @@ button { font-family: inherit; }
 
 /* ===== Responsive: mobile ===== */
 @media (max-width: 768px) {
-  .app-header { padding: 0 12px; height: 48px; }
-  .logo-text { font-size: 14px; }
+  .app-header { padding: 0 10px; height: 48px; }
+  .logo-text { display: none; }
   .logo-badge { display: none; }
-  .model-info { padding: 4px 8px; font-size: 11px; }
-  .model-info span:nth-child(2) { max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .header-right .ai-btn { padding: 0 10px; font-size: 12px; }
+  .logo-icon { font-size: 20px; }
 
   .mobile-menu-btn { display: flex; align-items: center; }
-  .mobile-current-proj { display: block; font-size: 12px; font-weight: 700; color: var(--ai-text); max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
-  .mobile-current-proj:active { background: var(--ai-primary-bg); }
+  .mobile-current-proj { display: block; font-size: 13px; font-weight: 700; color: var(--ai-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; padding: 2px 4px; }
   .sidebar-list-title { display: block; font-size: 12px; font-weight: 700; color: var(--ai-text-muted); padding: 4px 12px 8px; text-transform: uppercase; letter-spacing: 1px; }
   .sidebar-collapse-desktop { display: none !important; }
-  .mobile-tabs { display: flex; gap: 0; position: absolute; bottom: 0; left: 0; right: 0; height: 44px; background: var(--ai-bg-card); border-top: 2px solid var(--ai-border); z-index: 100; }
+
+  /* Header right: 手机端隐藏model-info，只留设置按钮 */
+  .model-info { display: none; }
+  .settings-text { display: inline; }
+  .settings-icon { display: none; }
+  .header-right .ai-btn { padding: 0 10px; font-size: 12px; }
+
+  .mobile-tabs { display: flex; gap: 0; position: fixed; bottom: 0; left: 0; right: 0; height: 44px; background: var(--ai-bg-card); border-top: 2px solid var(--ai-border); z-index: 100; }
   .mobile-tabs button { flex: 1; border: none; background: none; font-size: 14px; font-weight: 700; color: var(--ai-text-muted); cursor: pointer; transition: all .15s; }
   .mobile-tabs button.active { color: var(--ai-primary); border-bottom: 3px solid var(--ai-primary); }
+
+  .app-body { padding-bottom: 44px; }
 
   /* Sidebar overlay drawer */
   .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 200; transform: translateX(-100%); transition: transform .25s var(--ai-ease); box-shadow: 4px 0 20px rgba(0,0,0,.15); }
@@ -167,7 +173,8 @@ button { font-family: inherit; }
   .main-area.mobile-tab-result .input-panel { display: none; }
   .main-area.mobile-tab-result .result-panel { display: flex; }
 
-  .input-panel { width: 100% !important; border-right: none; border-bottom: 2px solid var(--ai-border); flex: 1; }
+  .input-panel { width: 100% !important; border-right: none; border-bottom: 2px solid var(--ai-border); flex: 1; padding-bottom: 50px; }
+  .input-panel-head { display: none; }
   .input-panel.collapsed { display: none; }
   .result-panel { flex: 1; }
 

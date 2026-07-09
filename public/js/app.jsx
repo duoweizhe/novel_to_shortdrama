@@ -764,10 +764,10 @@ function App() {
         <div className="header-right">
           <div className="model-info" onClick={() => setSettingsOpen(true)}>
             <span className={`model-dot ${hasProvider ? '' : 'off'}`}></span>
-            <span>{hasProvider ? (cfg.providers.find(p => p.id === cfg.activeProvider)?.name || '已配置') : '未配置模型'}</span>
-            <span>⚙️</span>
+            <span className="model-name-text">{hasProvider ? (cfg.providers.find(p => p.id === cfg.activeProvider)?.name || '已配置') : '未配置模型'}</span>
+            <span className="model-gear">⚙️</span>
           </div>
-          <Button size="small" onClick={() => setSettingsOpen(true)}>设置</Button>
+          <Button size="small" onClick={() => setSettingsOpen(true)}><span className="settings-text">设置</span><span className="settings-icon">⚙️</span></Button>
         </div>
         {project && (
           <div className="mobile-tabs">
