@@ -771,8 +771,9 @@ function App() {
         </div>
         {project && (
           <div className="mobile-tabs">
-            <button className={mobileTab === 'input' ? 'active' : ''} onClick={() => setMobileTab('input')}>输入</button>
-            <button className={mobileTab === 'result' ? 'active' : ''} onClick={() => setMobileTab('result')}>结果</button>
+            <button onClick={() => setSidebarOpen(true)}>📁 项目</button>
+            <button className={mobileTab === 'input' ? 'active' : ''} onClick={() => setMobileTab('input')}>📝 输入</button>
+            <button className={mobileTab === 'result' ? 'active' : ''} onClick={() => setMobileTab('result')}>🎬 结果</button>
           </div>
         )}
       </header>

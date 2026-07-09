@@ -1644,8 +1644,9 @@ ${c.content || ""}`).join("\n\n");
         ] })
       ] }),
       project && /* @__PURE__ */ jsxs("div", { className: "mobile-tabs", children: [
-        /* @__PURE__ */ jsx("button", { className: mobileTab === "input" ? "active" : "", onClick: () => setMobileTab("input"), children: "\u8F93\u5165" }),
-        /* @__PURE__ */ jsx("button", { className: mobileTab === "result" ? "active" : "", onClick: () => setMobileTab("result"), children: "\u7ED3\u679C" })
+        /* @__PURE__ */ jsx("button", { onClick: () => setSidebarOpen(true), children: "\u{1F4C1} \u9879\u76EE" }),
+        /* @__PURE__ */ jsx("button", { className: mobileTab === "input" ? "active" : "", onClick: () => setMobileTab("input"), children: "\u{1F4DD} \u8F93\u5165" }),
+        /* @__PURE__ */ jsx("button", { className: mobileTab === "result" ? "active" : "", onClick: () => setMobileTab("result"), children: "\u{1F3AC} \u7ED3\u679C" })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "app-body", children: [
