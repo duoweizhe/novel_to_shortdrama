@@ -1,7 +1,7 @@
 // public/js/app.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
-import { Button, Input, Modal, Switch, Tag, Select, Card } from "animal-island-ui";
+import { Button, Input, Modal, Tag } from "animal-island-ui";
 
 // public/js/api.js
 async function http(url, opts = {}) {
@@ -11,7 +11,13 @@ async function http(url, opts = {}) {
     body: opts.body ? JSON.stringify(opts.body) : void 0
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const error = new Error(data.error || `HTTP ${res.status}`);
+    error.status = res.status;
+    error.data = data;
+    error.response = { status: res.status, data };
+    throw error;
+  }
   return data;
 }
 async function sse(url, body, onData, signal) {
@@ -28,28 +34,39 @@ async function sse(url, body, onData, signal) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  const processEvent = (block) => {
+    let event = "message";
+    const dataLines = [];
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+    }
+    const raw = dataLines.join("\n").trim();
+    if (!raw || raw === "[DONE]") return;
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      data = { error: raw };
+    }
+    if (event === "error") throw new Error(data.error || data.message || "\u6D41\u5F0F\u8BF7\u6C42\u5931\u8D25");
+    onData(data);
+  };
   while (true) {
     const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done }).replace(/\r\n/g, "\n");
+    const blocks = buffer.split("\n\n");
+    buffer = blocks.pop() || "";
+    for (const block of blocks) processEvent(block);
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const d = line.slice(6).trim();
-      if (d === "[DONE]") continue;
-      try {
-        onData(JSON.parse(d));
-      } catch {
-      }
-    }
   }
+  if (buffer.trim()) processEvent(buffer);
 }
 var api = {
   listProjects: () => http("/api/projects"),
   createProject: (name, style) => http("/api/projects", { method: "POST", body: { name, style } }),
   getProject: (id) => http("/api/projects/" + id),
-  updateProject: (id, patch) => http("/api/projects/" + id, { method: "PUT", body: patch }),
+  updateProject: (id, patch, expectedRevision) => http("/api/projects/" + id, { method: "PUT", body: { ...patch, ...expectedRevision === void 0 ? {} : { expectedRevision } } }),
   deleteProject: (id) => http("/api/projects/" + id, { method: "DELETE" }),
   importProject: (data) => http("/api/projects/import", { method: "POST", body: data }),
   importChapters: (id, content) => http(`/api/projects/${id}/chapters/import`, { method: "POST", body: { content } }),
@@ -59,6 +76,11 @@ var api = {
   getKnowledge: (id) => http(`/api/projects/${id}/knowledge`),
   updateKnowledge: (id, kb) => http(`/api/projects/${id}/knowledge`, { method: "PUT", body: kb }),
   exportMd: (id) => `/api/projects/${id}/export-md`,
+  exportJson: (id) => `/api/projects/${id}/export-json`,
+  exportSrt: (id) => `/api/projects/${id}/export-srt`,
+  exportEpisodeSrt: (id, episode) => `/api/projects/${id}/export-srt/${episode}`,
+  exportManifest: (id) => `/api/projects/${id}/export-manifest`,
+  exportDeliveryZip: (id) => `/api/projects/${id}/export-delivery.zip`,
   snapshot: (id, label) => http(`/api/projects/${id}/snapshot`, { method: "POST", body: { label } }),
   getSnapshots: (id) => http(`/api/projects/${id}/snapshots`),
   restoreSnapshot: (id, snId) => http(`/api/projects/${id}/snapshots/${snId}/restore`, { method: "POST" }),
@@ -66,13 +88,16 @@ var api = {
   getConfig: () => http("/api/config/llm"),
   saveConfig: (cfg) => http("/api/config/llm", { method: "PUT", body: cfg }),
   testConn: (baseUrl, apiKey, model) => http("/api/config/llm/test", { method: "POST", body: { baseUrl, apiKey, model } }),
-  genImage: (prompt, negativePrompt, size, style, images) => http("/api/generate/image", { method: "POST", body: { prompt, negativePrompt, size, visualStyle: style, images } }),
+  genImage: (prompt2, negativePrompt, size, style, images) => http("/api/generate/image", { method: "POST", body: { prompt: prompt2, negativePrompt, size, visualStyle: style, images } }),
   genVideo: (params) => http("/api/generate/video", { method: "POST", body: params }),
   getVideo: (id) => http("/api/generate/video/" + id),
-  preprocess: (content, onData, signal) => sse("/api/preprocess", { content }, onData, signal),
+  listJobs: (projectId) => http(`/api/projects/${projectId}/jobs`),
+  createJob: (projectId, job, expectedRevision) => http(`/api/projects/${projectId}/jobs`, { method: "POST", body: { ...job, ...expectedRevision === void 0 ? {} : { expectedRevision } } }),
+  updateJob: (projectId, jobId, patch, expectedRevision) => http(`/api/projects/${projectId}/jobs/${jobId}`, { method: "PATCH", body: { ...patch, ...expectedRevision === void 0 ? {} : { expectedRevision } } }),
+  preprocess: (content, projectId, scope, onData, signal) => sse("/api/preprocess", { content, projectId, sourceMode: scope?.mode || "content", chapterId: scope?.mode === "chapter" ? scope.chId : void 0 }, onData, signal),
   analyze: (params, onData, signal) => sse("/api/analyze", params, onData, signal),
   analyzeAll: (params, onData, signal) => sse("/api/analyze-all", params, onData, signal),
-  checkConsistency: (results, knowledge, onData, signal) => sse("/api/check-consistency", { results, knowledge }, onData, signal)
+  checkConsistency: (projectId, results, knowledge, onData, signal) => sse("/api/check-consistency", { projectId, results, knowledge }, onData, signal)
 };
 
 // public/js/example.js
@@ -615,6 +640,100 @@ var EXAMPLE_PROJECT = {
 - **\u53C2\u8003\u4F5C\u54C1 2**\uFF1A\u300A\u6B7B\u4EA1\u7B14\u8BB0\u300B \u2014 \u53C2\u8003\u5176\u6697\u8C03\u7EBF\u6761\u98CE\u683C\u548C\u60AC\u7591\u6C1B\u56F4\u6E32\u67D3
 - **\u53C2\u8003\u827A\u672F\u5BB6/\u753B\u5E08**\uFF1A\u5C0F\u7551\u5065 \u2014 \u53C2\u8003\u5176\u7CBE\u7EC6\u7EBF\u6761\u548C\u6697\u8C03\u4E0A\u8272\u98CE\u683C`
   },
+  manga: {
+    title: "\u6700\u540E\u4E00\u73ED\u7535\u68AF",
+    totalPages: 2,
+    styleType: "\u65E5\u6F2B",
+    platform: "\u54D4\u54E9\u54D4\u54E9\u6F2B\u753B",
+    readingDirection: "right-to-left",
+    synopsis: "\u6DF1\u591C\u52A0\u73ED\u7684\u5973\u8BB0\u8005\u6797\u590F\u4E58\u5750\u6700\u540E\u4E00\u73ED\u7535\u68AF\uFF0C\u53D1\u73B0\u955C\u4E2D\u5012\u5F71\u51FA\u73B0\u5F02\u5E38\uFF0C\u4E00\u6B65\u6B65\u63ED\u5F00\u5927\u697C\u91CC\u9690\u85CF\u7684\u6050\u6016\u79D8\u5BC6\u3002",
+    pages: [
+      {
+        pageNum: 1,
+        narrativePace: "\u94FA\u57AB",
+        pageHook: '\u955C\u4E2D\u7684"\u5979"\u7F13\u7F13\u8F6C\u8FC7\u5934\uFF0C\u9732\u51FA\u4E00\u4E2A\u4E0D\u5C5E\u4E8E\u6797\u590F\u7684\u7B11\u5BB9...',
+        panels: [
+          {
+            panelNum: 1,
+            layout: "\u4E0D\u89C4\u5219\u5927\u683C",
+            sizeHint: "\u5927\u683C(\u91CD\u8981)",
+            sceneDesc: "\u6DF1\u591C\u7A7A\u65F7\u7684\u5199\u5B57\u697C\u5927\u5385\uFF0C\u6797\u590F\u72EC\u81EA\u8D70\u5411\u7535\u68AF\uFF0C\u80CC\u666F\u662F\u5173\u706F\u540E\u7684\u529E\u516C\u533A\uFF0C\u53EA\u6709\u7535\u68AF\u6307\u793A\u706F\u4EAE\u7740",
+            characterExpressions: "\u6797\u590F\u75B2\u60EB\u7684\u8868\u60C5\uFF0C\u5FAE\u5FAE\u4F4E\u5934\uFF0C\u624B\u63D0\u5305\u642D\u5728\u80A9\u4E0A",
+            dialogue: [{ position: "\u53F3\u4E0A", speaker: "\u65C1\u767D", text: "\u51CC\u66681\u70B917\u5206\uFF0C\u52A0\u73ED\u5230\u6700\u540E\u7684\u53EA\u6709\u6211\u3002" }],
+            narration: { position: "\u5DE6\u4E0A", text: "\u8FD9\u680B\u697C\u7684\u6700\u540E\u4E00\u73ED\u7535\u68AF\uFF0C\u4F20\u8BF4\u51CC\u6668\u540E\u53EA\u4E0B\u4E0D\u4E0A..." },
+            soundEffect: { text: "\u53EE\u2014\u2014", style: "\u5370\u5237\u4F53", position: "\u7535\u68AF\u95E8\u65C1" },
+            emotionSymbols: [],
+            transitionToNext: "\u65F6\u95F4\u8DF3\u8DC3",
+            imagePromptZh: "\u6DF1\u591C\u7A7A\u65F7\u5199\u5B57\u697C\u5927\u5385\uFF0C\u5E74\u8F7B\u5973\u8BB0\u8005\u7A7F\u6DF1\u7070\u8272\u98CE\u8863\u72EC\u81EA\u8D70\u5411\u7535\u68AF\uFF0C\u80CC\u666F\u5173\u706F\u529E\u516C\u533A\u660F\u6697\uFF0C\u53EA\u6709\u7535\u68AF\u6307\u793A\u706F\u4EAE\u8D77\u51B7\u5149\uFF0Canime style, Japanese animation, cel shading, vibrant colors, clean line art, mysterious atmosphere",
+            imagePromptEn: "comic panel, large establishing shot, late night empty office building lobby, young female journalist in dark grey trench coat walking alone towards elevator, dark background with only elevator indicator light glowing cold blue, tired expression, anime style, Japanese animation, cel shading, clean line art, mysterious atmosphere, Studio Ghibli inspired, 2D anime aesthetic, high quality"
+          },
+          {
+            panelNum: 2,
+            layout: "1x1",
+            sizeHint: "\u4E2D\u683C",
+            sceneDesc: "\u7535\u68AF\u5185\u90E8\u7279\u5199\uFF0C\u6797\u590F\u6309\u4E0B\u8D1F1\u5C42\u6309\u94AE\uFF0C\u7535\u68AF\u95E8\u7F13\u7F13\u5173\u95ED",
+            characterExpressions: "\u6797\u590F\u9762\u65E0\u8868\u60C5\uFF0C\u673A\u68B0\u5730\u6309\u6309\u94AE\uFF0C\u773C\u795E\u75B2\u60EB",
+            dialogue: [{ position: "\u5DE6\u4E0A", speaker: "\u6797\u590F", text: "\u8D1F1\u5C42...\u505C\u8F66\u573A\u3002" }],
+            narration: null,
+            soundEffect: { text: "\u5494\u55D2", style: "\u5370\u5237\u4F53", position: "\u6309\u94AE\u65C1" },
+            emotionSymbols: [],
+            transitionToNext: "\u8FDE\u7EED",
+            imagePromptZh: "\u7535\u68AF\u5185\u90E8\u7279\u5199\u753B\u9762\uFF0C\u5973\u8BB0\u8005\u7A7F\u6DF1\u7070\u8272\u98CE\u8863\u4F38\u624B\u6309\u8D1F1\u5C42\u6309\u94AE\uFF0C\u7535\u68AF\u95E8\u6B63\u5728\u5173\u95ED\uFF0C\u7535\u68AF\u5185\u51B7\u767D\u8272\u706F\u5149\uFF0C\u4E0D\u9508\u94A2\u58C1\u9762\u53CD\u5C04\uFF0Canime style, Japanese animation, cel shading, clean line art",
+            imagePromptEn: "comic panel, medium shot, elevator interior close-up, female journalist in dark grey trench coat pressing basement level 1 button, elevator doors closing, cold white fluorescent lighting, stainless steel walls reflecting, tired blank expression, anime style, Japanese animation, cel shading, clean line art, 2D anime aesthetic, high quality"
+          },
+          {
+            panelNum: 3,
+            layout: "2x1\u5DE6",
+            sizeHint: "\u5C0F\u683C(\u5FEB\u901F\u53CD\u5E94)",
+            sceneDesc: "\u6797\u590F\u65E0\u610F\u95F4\u77A5\u5411\u7535\u68AF\u955C\u9762\uFF0C\u955C\u4E2D\u81EA\u5DF1\u7684\u5012\u5F71\u4F3C\u4E4E\u6162\u4E86\u534A\u62CD",
+            characterExpressions: "\u6797\u590F\u77B3\u5B54\u5FAE\u7F29\uFF0C\u5634\u89D2\u521A\u653E\u677E\u8FD8\u6CA1\u5B8C\u5168\u653E\u677E\uFF0C\u8B66\u89C9\u7684\u77AC\u95F4",
+            dialogue: [],
+            narration: { position: "\u5E95\u90E8", text: "\u90A3\u4E00\u77AC\u95F4\uFF0C\u6211\u89C9\u5F97\u955C\u5B50\u91CC\u7684\u81EA\u5DF1...\u6162\u4E86\u534A\u62CD\u3002" },
+            soundEffect: null,
+            emotionSymbols: ["\u2757"],
+            transitionToNext: "\u5BF9\u6BD4",
+            imagePromptZh: "\u5C0F\u683C\u6F2B\u753B\u753B\u9762\uFF0C\u7535\u68AF\u955C\u9762\u53CD\u5C04\u5973\u8BB0\u8005\u7684\u8138\uFF0C\u955C\u4E2D\u5012\u5F71\u8868\u60C5\u4E0E\u73B0\u5B9E\u7565\u6709\u4E0D\u540C\uFF0C\u955C\u4E2D\u4EBA\u7269\u773C\u795E\u66F4\u9634\u6697\uFF0C\u51B7\u767D\u8272\u706F\u5149\uFF0C\u7D27\u5F20\u60AC\u7591\u6C1B\u56F4\uFF0Canime style, Japanese animation, cel shading, clean line art",
+            imagePromptEn: "comic panel, small reaction shot, elevator mirror reflection showing female journalist face, reflection expression slightly different from real person, mirror version has darker eyes, cold white lighting, tense suspenseful atmosphere, anime style, Japanese animation, cel shading, clean line art, 2D anime aesthetic, high quality"
+          }
+        ]
+      },
+      {
+        pageNum: 2,
+        narrativePace: "\u7206\u53D1",
+        pageHook: '\u955C\u4E2D\u7684"\u5979"\u62AC\u624B\u6307\u5411\u7535\u68AF\u9876\u90E8\uFF0C\u90A3\u91CC\u523B\u7740\u4E00\u4E2A\u88AB\u9057\u5FD8\u7684\u6570\u5B57\u2014\u201413\u3002',
+        panels: [
+          {
+            panelNum: 1,
+            layout: "\u51FA\u8840",
+            sizeHint: "\u5927\u683C(\u91CD\u8981)",
+            sceneDesc: "\u955C\u4E2D\u7684\u5012\u5F71\u7F13\u7F13\u8F6C\u8FC7\u5934\u6765\uFF0C\u9732\u51FA\u4E00\u4E2A\u4E0D\u5C5E\u4E8E\u6797\u590F\u7684\u8BE1\u5F02\u7B11\u5BB9\uFF0C\u7535\u68AF\u706F\u5149\u5F00\u59CB\u95EA\u70C1",
+            characterExpressions: "\u955C\u4E2D\u5012\u5F71\u5634\u89D2\u4E0A\u626C\u9732\u51FA\u8BE1\u5F02\u5FAE\u7B11\uFF0C\u773C\u775B\u5FAE\u5FAE\u53D1\u7EA2\uFF0C\u73B0\u5B9E\u4E2D\u7684\u6797\u590F\u60CA\u6050\u540E\u9000",
+            dialogue: [],
+            narration: null,
+            soundEffect: { text: "\u6ECB\u2014\u2014\u6ECB\u2014\u2014", style: "\u98A4\u6296\u4F53", position: "\u5168\u753B\u9762" },
+            emotionSymbols: ["\u{1F4A2}", "\u2757", "\u2757"],
+            transitionToNext: "\u5BF9\u6BD4",
+            imagePromptZh: "\u51FA\u8840\u5927\u683C\u6F2B\u753B\u753B\u9762\uFF0C\u7535\u68AF\u955C\u9762\u4E2D\u5012\u5F71\u8F6C\u8FC7\u5934\u9732\u51FA\u8BE1\u5F02\u7B11\u5BB9\uFF0C\u773C\u775B\u5FAE\u7EA2\uFF0C\u706F\u5149\u95EA\u70C1\uFF0C\u73B0\u5B9E\u4E2D\u5973\u8BB0\u8005\u60CA\u6050\u540E\u9000\uFF0C\u6050\u6016\u6C1B\u56F4\uFF0Canime style, Japanese animation, cel shading, dark atmosphere, horror",
+            imagePromptEn: "comic panel, full bleed large panel, elevator mirror reflection turning head to reveal eerie smile, glowing red eyes, flickering lights, real female journalist stepping back in horror, dark horror atmosphere, anime style, Japanese animation, cel shading, clean line art, dramatic shadows, 2D anime aesthetic, high quality"
+          },
+          {
+            panelNum: 2,
+            layout: "1x1",
+            sizeHint: "\u4E2D\u683C",
+            sceneDesc: "\u6797\u590F\u731B\u6309\u5F00\u95E8\u6309\u94AE\uFF0C\u7535\u68AF\u663E\u793A\u7684\u697C\u5C42\u6570\u5B57\u5F00\u59CB\u8DF3\u52A8\u2014\u201414\u300115\u300113\u300114...",
+            characterExpressions: "\u6797\u590F\u60CA\u614C\u5931\u63AA\uFF0C\u624B\u6307\u75AF\u72C2\u6309\u6309\u94AE\uFF0C\u989D\u5934\u5192\u6C57",
+            dialogue: [{ position: "\u53F3\u4E0B", speaker: "\u6797\u590F", text: "\u5F00\u95E8\uFF01\u5F00\u95E8\uFF01\uFF01" }],
+            narration: null,
+            soundEffect: { text: "\u7830\u7830\u7830", style: "\u7206\u70B8\u4F53", position: "\u6309\u94AE\u5904" },
+            emotionSymbols: ["\u{1F4A6}", "\u2757"],
+            transitionToNext: "\u8FDE\u7EED",
+            imagePromptZh: "\u4E2D\u683C\u6F2B\u753B\u753B\u9762\uFF0C\u5973\u8BB0\u8005\u60CA\u614C\u731B\u6309\u7535\u68AF\u5F00\u95E8\u6309\u94AE\uFF0C\u697C\u5C42\u663E\u793A\u5C4F\u6570\u5B57\u8DF3\u52A8\u6DF7\u4E71\uFF0C\u989D\u5934\u5192\u6C57\uFF0C\u7D27\u5F20\u6C1B\u56F4\uFF0Canime style, Japanese animation, cel shading, clean line art",
+            imagePromptEn: "comic panel, medium shot, panicked female journalist frantically pressing elevator open button, floor display numbers jumping chaotically 14 15 13 14, sweat on forehead, intense panic atmosphere, anime style, Japanese animation, cel shading, clean line art, 2D anime aesthetic, high quality"
+          }
+        ]
+      }
+    ]
+  },
   mediaItems: [],
   snapshots: [],
   createdAt: "2026-07-08T16:00:00.000Z",
@@ -632,7 +751,7 @@ var MODULES = [
   { id: "storyboard", name: "\u5206\u955C\u811A\u672C", icon: "\u{1F3AC}", type: "json" },
   { id: "script", name: "\u77ED\u5267\u811A\u672C", icon: "\u{1F4DD}", type: "md" },
   { id: "assets", name: "\u89C6\u89C9\u8D44\u4EA7", icon: "\u{1F3A8}", type: "md" },
-  { id: "manga", name: "\u6F2B\u753B\u811A\u672C", icon: "\u{1F4D6}", type: "md" }
+  { id: "manga", name: "\u6F2B\u753B\u811A\u672C", icon: "\u{1F4D6}", type: "json" }
 ];
 function toast(msg, type) {
   const el = document.createElement("div");
@@ -647,12 +766,45 @@ function toast(msg, type) {
 function renderMd(md) {
   if (!md) return "";
   try {
-    return marked.parse(md);
+    return DOMPurify.sanitize(marked.parse(md));
   } catch {
-    return md;
+    return DOMPurify.sanitize(String(md));
   }
 }
-function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, collapsed, onToggle, mobileOpen, onCloseMobile }) {
+function stableId(prefix) {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+function normalizeProject(project) {
+  const production = project.results?.__production || {};
+  const normalized = { ...project, revision: project.revision ?? production.revision ?? 0, sourceRevision: project.sourceRevision ?? production.sourceRevision ?? 1, assets: project.assets || production.assets || [], jobs: project.jobs || production.jobs || [] };
+  const results = { ...normalized.results || {} };
+  const withIds = (items, prefix) => (items || []).map((item) => ({ ...item, id: item.id || stableId(prefix) }));
+  if (results.characters) results.characters = { ...results.characters, characters: withIds(results.characters.characters, "char") };
+  if (results.scenes) results.scenes = { ...results.scenes, scenes: withIds(results.scenes.scenes, "scene") };
+  if (results.storyboard) results.storyboard = { ...results.storyboard, shots: withIds(results.storyboard.shots, "shot") };
+  if (results.manga?.pages) results.manga = { ...results.manga, pages: results.manga.pages.map((page) => ({ ...page, id: page.id || stableId("page"), panels: withIds(page.panels, "panel") })) };
+  normalized.results = results;
+  return normalized;
+}
+function mergeProjectState(serverValue, localValue) {
+  if (Array.isArray(serverValue) && Array.isArray(localValue)) {
+    if (![...serverValue, ...localValue].some((item) => item && typeof item === "object" && item.id)) return localValue;
+    const merged = new Map(serverValue.map((item) => [item?.id || stableId("merge"), item]));
+    localValue.forEach((item) => merged.set(item?.id || stableId("merge"), item));
+    return [...merged.values()];
+  }
+  if (serverValue && localValue && typeof serverValue === "object" && typeof localValue === "object") {
+    const keys = /* @__PURE__ */ new Set([...Object.keys(serverValue), ...Object.keys(localValue)]);
+    return Object.fromEntries([...keys].map((key) => [key, mergeProjectState(serverValue[key], localValue[key])]));
+  }
+  return localValue === void 0 ? serverValue : localValue;
+}
+function staleUpstream(project) {
+  const sourceRevision = (project.sourceRevision || 1) + 1;
+  const results = Object.fromEntries(Object.entries(project.results || {}).map(([key, value]) => [key, value && typeof value === "object" ? { ...value, stale: true } : value]));
+  return { sourceRevision, results, assets: (project.assets || []).map((asset) => ({ ...asset, stale: true })) };
+}
+function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, onRename, collapsed, onToggle, mobileOpen, onCloseMobile }) {
   const fileRef = useR(null);
   if (collapsed && !mobileOpen) {
     return /* @__PURE__ */ jsxs("aside", { className: "sidebar collapsed", children: [
@@ -689,10 +841,17 @@ function Sidebar({ projects, currentId, onSelect, onNew, onDelete, onImport, col
       ] }),
       projects.map((p) => /* @__PURE__ */ jsxs("div", { className: `proj-item ${p.id === currentId ? "active" : ""}`, onClick: () => onSelect(p.id), title: p.name, children: [
         /* @__PURE__ */ jsx("span", { className: "proj-name", children: p.name }),
-        /* @__PURE__ */ jsx("span", { className: "del", onClick: (e) => {
-          e.stopPropagation();
-          onDelete(p.id);
-        }, children: "\u2715" })
+        /* @__PURE__ */ jsxs("span", { className: "proj-actions", children: [
+          /* @__PURE__ */ jsx("span", { className: "rename", onClick: (e) => {
+            e.stopPropagation();
+            const n = prompt("\u91CD\u547D\u540D\u9879\u76EE", p.name);
+            if (n && n.trim()) onRename(p.id, n.trim());
+          }, children: "\u270E" }),
+          /* @__PURE__ */ jsx("span", { className: "del", onClick: (e) => {
+            e.stopPropagation();
+            onDelete(p.id);
+          }, children: "\u2715" })
+        ] })
       ] }, p.id))
     ] })
   ] });
@@ -740,7 +899,7 @@ function NewProjectModal({ open, onClose, onCreate }) {
         ] }),
         /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
           /* @__PURE__ */ jsx("label", { children: "\u9ED8\u8BA4\u89C6\u89C9\u98CE\u683C" }),
-          /* @__PURE__ */ jsx(Select, { options: styleOptions, value: style, onChange: (val) => setStyle(val) })
+          /* @__PURE__ */ jsx("select", { className: "native-select", value: style, onChange: (e) => setStyle(e.target.value), children: styleOptions.map((o) => /* @__PURE__ */ jsx("option", { value: o.key, children: o.label }, o.key)) })
         ] })
       ] })
     }
@@ -755,12 +914,13 @@ function SettingsModal({ open, onClose, onSaved }) {
     });
   }, [open]);
   if (!open || !cfg) return null;
-  const llmProviders = cfg.providers.filter((p) => p.type !== "media");
-  const mediaProviders = cfg.providers.filter((p) => p.type === "media");
+  const llmProviders = cfg.providers.filter((p) => p.type === "llm" || !p.type && !p.id.includes("agnes"));
+  const imageProviders = cfg.providers.filter((p) => p.type === "image" || p.type === "media" && p.id.includes("agnes"));
+  const videoProviders = cfg.providers.filter((p) => p.type === "video" || p.type === "media" && p.id.includes("agnes"));
   const findPreset = (id) => cfg.presets?.find((p) => p.id === id);
   const updateProvider = (id, field, val) => setCfg((c) => ({ ...c, providers: c.providers.map((p) => p.id === id ? { ...p, [field]: val } : p) }));
-  const addProvider = (type) => setCfg((c) => ({ ...c, providers: [...c.providers, { id: "prov_" + Date.now().toString(36), name: "\u81EA\u5B9A\u4E49" + (type === "media" ? "\u5A92\u4F53" : "LLM"), baseUrl: "", apiKey: "", model: "", type }] }));
-  const delProvider = (id) => setCfg((c) => ({ ...c, providers: c.providers.filter((p) => p.id !== id) }));
+  const addProvider = (type) => setCfg((c) => ({ ...c, providers: [...c.providers, { id: "prov_" + Date.now().toString(36), name: "\u81EA\u5B9A\u4E49" + (type === "llm" ? "\u6587\u672C" : type === "image" ? "\u751F\u56FE" : "\u751F\u89C6\u9891"), baseUrl: "", apiKey: "", model: "", type }] }));
+  const delProvider = (id) => setCfg((c) => ({ ...c, providers: c.providers.filter((p) => p.id !== id), activeProvider: c.activeProvider === id ? null : c.activeProvider, imageProvider: c.imageProvider === id ? null : c.imageProvider, videoProvider: c.videoProvider === id ? null : c.videoProvider }));
   const addPreset = (preset) => {
     if (cfg.providers.find((p) => p.id === preset.id)) return;
     setCfg((c) => ({ ...c, providers: [...c.providers, { ...preset, type: preset.type || "llm", apiKey: "" }] }));
@@ -797,8 +957,9 @@ function SettingsModal({ open, onClose, onSaved }) {
       ] }) : /* @__PURE__ */ jsx(Input, { size: "small", value: p.model, onChange: (e) => updateProvider(p.id, "model", e.target.value), placeholder: "\u6A21\u578B\u540D" })
     ] });
   };
-  const renderProvider = (p, isMedia) => {
-    const isActive = !isMedia && p.id === cfg.activeProvider || isMedia && p.id === cfg.mediaProvider;
+  const renderProvider = (p, providerType) => {
+    const activeKey = providerType === "llm" ? "activeProvider" : providerType === "image" ? "imageProvider" : "videoProvider";
+    const isActive = cfg[activeKey] === p.id;
     const preset = findPreset(p.id);
     const desc = preset ? `${preset.name}` : "";
     return /* @__PURE__ */ jsxs("div", { className: `provider-row ${isActive ? "active" : ""}`, children: [
@@ -826,7 +987,7 @@ function SettingsModal({ open, onClose, onSaved }) {
       ] }),
       modelSelect(p),
       /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4, minWidth: 60 }, children: [
-        /* @__PURE__ */ jsx(Button, { size: "small", type: isActive ? "primary" : "default", onClick: () => setCfg((c) => ({ ...c, [isMedia ? "mediaProvider" : "activeProvider"]: p.id })), children: isActive ? "\u2713 \u4E3B" : "\u8BBE\u4E3A\u4E3B" }),
+        /* @__PURE__ */ jsx(Button, { size: "small", type: isActive ? "primary" : "default", onClick: () => setCfg((c) => ({ ...c, [activeKey]: p.id })), children: isActive ? "\u2713 \u4E3B" : "\u8BBE\u4E3A\u4E3B" }),
         /* @__PURE__ */ jsx(Button, { size: "small", loading: testing === p.id, onClick: () => test(p), children: "\u6D4B\u8BD5" }),
         /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => delProvider(p.id), children: "\u5220" })
       ] }),
@@ -835,24 +996,34 @@ function SettingsModal({ open, onClose, onSaved }) {
   };
   return /* @__PURE__ */ jsx(Modal, { open, title: "\u2699\uFE0F \u6A21\u578B\u914D\u7F6E", typewriter: false, onClose, onOk: save, okText: "\u4FDD\u5B58", cancelText: "\u53D6\u6D88", width: 760, children: /* @__PURE__ */ jsxs("div", { className: "settings-body modal-content", children: [
     /* @__PURE__ */ jsxs("div", { className: "settings-section", children: [
-      /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4DA} LLM \u6587\u672C\u6A21\u578B\uFF08\u7528\u4E8E\u5267\u60C5\u5206\u6790/\u89D2\u8272/\u573A\u666F/\u5206\u955C/\u811A\u672C\u751F\u6210\uFF09" }),
-      /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type !== "media").map((p) => /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: [
+      /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4DA} \u6587\u672C\u6A21\u578B\uFF08\u5267\u60C5\u5206\u6790/\u89D2\u8272/\u573A\u666F/\u5206\u955C/\u811A\u672C\u751F\u6210\uFF09" }),
+      /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type === "llm").map((p) => /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: [
         "+ ",
         p.name
       ] }, p.id)) }),
-      llmProviders.length === 0 && /* @__PURE__ */ jsx("div", { className: "settings-hint", children: "\u672A\u914D\u7F6ELLM\uFF0C\u70B9\u51FB\u4E0A\u65B9\u9884\u8BBE\u6309\u94AE\u6DFB\u52A0\uFF08\u63A8\u8350 Agnes 2.0 Flash \u6216 DeepSeek\uFF09" }),
-      llmProviders.map((p) => renderProvider(p, false)),
-      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("llm"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49LLM" })
+      llmProviders.length === 0 && /* @__PURE__ */ jsx("div", { className: "settings-hint", children: "\u672A\u914D\u7F6E\u6587\u672C\u6A21\u578B\uFF0C\u70B9\u51FB\u4E0A\u65B9\u9884\u8BBE\u6309\u94AE\u6DFB\u52A0\uFF08\u63A8\u8350 Agnes 2.0 Flash \u6216 DeepSeek\uFF09" }),
+      llmProviders.map((p) => renderProvider(p, "llm")),
+      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("llm"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49\u6587\u672C\u6A21\u578B" })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "settings-section", style: { marginTop: 18 }, children: [
-      /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F3A8} \u5A92\u4F53\u751F\u6210\u6A21\u578B\uFF08\u7528\u4E8EAI\u751F\u56FE/\u56FE\u751F\u56FE/\u751F\u89C6\u9891/\u56FE\u751F\u89C6\u9891\uFF09" }),
-      /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type === "media").map((p) => /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: [
+      /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F3A8} \u751F\u56FE\u6A21\u578B\uFF08AI\u751F\u56FE/\u56FE\u751F\u56FE\uFF0C\u9ED8\u8BA4\u4F7F\u7528 Agnes\uFF09" }),
+      /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type === "image").map((p) => /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: [
         "+ ",
         p.name
       ] }, p.id)) }),
-      mediaProviders.length === 0 && /* @__PURE__ */ jsx("div", { className: "settings-hint", children: "\u672A\u914D\u7F6E\u5A92\u4F53\u6A21\u578B\uFF0C\u70B9\u51FB\u4E0A\u65B9\u9884\u8BBE\u6DFB\u52A0 Agnes AI\uFF08\u63A8\u8350\uFF0C\u751F\u56FE+\u751F\u89C6\u9891\u514D\u8D39\uFF09" }),
-      mediaProviders.map((p) => renderProvider(p, true)),
-      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("media"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49\u5A92\u4F53" })
+      imageProviders.length === 0 && /* @__PURE__ */ jsx("div", { className: "settings-hint", children: "\u672A\u914D\u7F6E\u751F\u56FE\u6A21\u578B\uFF0C\u9ED8\u8BA4\u56DE\u9000 Agnes \u751F\u56FE\uFF08agnes-image-2.1-flash\uFF0C\u514D\u8D39\uFF09" }),
+      imageProviders.map((p) => renderProvider(p, "image")),
+      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("image"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49\u751F\u56FE\u6A21\u578B" })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "settings-section", style: { marginTop: 18 }, children: [
+      /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F3AC} \u751F\u89C6\u9891\u6A21\u578B\uFF08\u6587\u751F\u89C6\u9891/\u56FE\u751F\u89C6\u9891/\u5173\u952E\u5E27\uFF0C\u9ED8\u8BA4\u4F7F\u7528 Agnes\uFF09" }),
+      /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }, children: cfg.presets.filter((p) => p.type === "video").map((p) => /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => addPreset(p), disabled: !!cfg.providers.find((x) => x.id === p.id), children: [
+        "+ ",
+        p.name
+      ] }, p.id)) }),
+      videoProviders.length === 0 && /* @__PURE__ */ jsx("div", { className: "settings-hint", children: "\u672A\u914D\u7F6E\u751F\u89C6\u9891\u6A21\u578B\uFF0C\u9ED8\u8BA4\u56DE\u9000 Agnes \u751F\u89C6\u9891\uFF08agnes-video-v2.0\uFF0C\u514D\u8D39\uFF09" }),
+      videoProviders.map((p) => renderProvider(p, "video")),
+      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => addProvider("video"), style: { marginTop: 6 }, children: "+ \u81EA\u5B9A\u4E49\u751F\u89C6\u9891\u6A21\u578B" })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "settings-section", style: { marginTop: 18 }, children: [
       /* @__PURE__ */ jsx("div", { className: "card-title", children: "\u{1F4D6} \u6A21\u578B\u8BF4\u660E" }),
@@ -873,7 +1044,7 @@ function SettingsModal({ open, onClose, onSaved }) {
           /* @__PURE__ */ jsx("b", { children: "deepseek-chat" }),
           " \u2014 DeepSeek\u6587\u672C\u6A21\u578B\uFF0C\u6027\u4EF7\u6BD4\u9AD8"
         ] }),
-        /* @__PURE__ */ jsx("div", { style: { marginTop: 6, color: "var(--ai-text-muted)" }, children: "API Key \u5B58\u50A8\u5728\u670D\u52A1\u7AEF data/config.json\uFF0C\u524D\u7AEF\u8131\u654F\u663E\u793A\u3002\u751F\u56FE\u9ED8\u8BA4\u7528 agnes-image-2.1-flash\uFF0C\u751F\u89C6\u9891\u9ED8\u8BA4\u7528 agnes-video-v2.0\u3002" })
+        /* @__PURE__ */ jsx("div", { style: { marginTop: 6, color: "var(--ai-text-muted)" }, children: "\u4E09\u79CD\u6A21\u578B\u72EC\u7ACB\u914D\u7F6E\uFF0C\u4E92\u4E0D\u5F71\u54CD\u3002\u751F\u56FE\u548C\u751F\u89C6\u9891\u672A\u914D\u7F6E\u65F6\u81EA\u52A8\u56DE\u9000 Agnes\u3002API Key \u5B58\u50A8\u5728\u670D\u52A1\u7AEF data/config.json\uFF0C\u524D\u7AEF\u8131\u654F\u663E\u793A\u3002" })
       ] })
     ] })
   ] }) });
@@ -1027,7 +1198,7 @@ function ChapterManager({ project, onUpdate }) {
     ] }) })
   ] });
 }
-function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, analysisSource, setAnalysisSource, collapsed, onToggleCollapse }) {
+function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasChapters, hasProvider, analysisSource, setAnalysisSource, analysisContent, collapsed, onToggleCollapse }) {
   const [content, setContent] = useS(project?.content || "");
   const [selectedModules, setSelectedModules] = useS(MODULES.map((m) => m.id));
   const [status, setStatus] = useS("");
@@ -1042,20 +1213,26 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
   };
   const toggleModule = (id) => setSelectedModules((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
   const doPreprocess = async () => {
-    if (!content.trim()) {
-      toast("\u8BF7\u5148\u8F93\u5165\u5185\u5BB9", "error");
+    const text = analysisContent || content;
+    if (!text.trim()) {
+      if (hasChapters && analysisSource?.mode === "chapter" && !analysisSource?.chId) {
+        toast("\u8BF7\u5148\u9009\u62E9\u4E00\u4E2A\u7AE0\u8282", "error");
+        return;
+      }
+      toast("\u8BF7\u5148\u8F93\u5165\u5185\u5BB9\u6216\u6DFB\u52A0\u7AE0\u8282", "error");
       return;
     }
     setPreprocessing(true);
     setStatus("\u9884\u5904\u7406\u4E2D...");
     try {
-      await api.preprocess(content, (d) => {
+      await api.preprocess(text, project?.id, analysisSource, (d) => {
         if (d.status === "split_done") setStatus(`\u5DF2\u5206 ${d.total} \u6BB5`);
         if (d.status === "summarizing") setStatus(`\u5206\u6790\u7B2C ${d.progress}/${d.total} \u6BB5...`);
         if (d.status === "synthesizing") setStatus("\u7EFC\u5408\u5206\u6790\u4E2D...");
         if (d.status === "done") {
+          onUpdate({ preprocess: { segments: d.segments || [], global: d.global || {}, sourceMode: d.sourceMode, chapterId: d.chapterId, contentHash: d.contentHash, createdAt: d.createdAt } });
           setStatus("\u9884\u5904\u7406\u5B8C\u6210");
-          toast("\u9884\u5904\u7406\u5B8C\u6210", "ok");
+          toast("\u9884\u5904\u7406\u5B8C\u6210\uFF0C\u5DF2\u4E3A\u540E\u7EED\u5206\u6790\u63D0\u4F9B\u5168\u5C40\u4E0A\u4E0B\u6587", "ok");
         }
       });
     } catch (e) {
@@ -1065,6 +1242,8 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
     setPreprocessing(false);
   };
   const chapters = project?.chapters || [];
+  const retryRun = [...project?.analysisRuns || []].reverse().find((run) => run.status === "failed" && Object.values(run.modules || {}).some((module) => module.status === "failed"));
+  const retryModules = retryRun ? Object.entries(retryRun.modules).filter(([, module]) => module.status === "failed").map(([type]) => type) : [];
   if (collapsed) {
     return /* @__PURE__ */ jsx("div", { className: "input-panel collapsed", children: /* @__PURE__ */ jsxs("div", { className: "input-collapsed-bar", onClick: onToggleCollapse, title: "\u5C55\u5F00\u8F93\u5165\u9762\u677F", children: [
       /* @__PURE__ */ jsx("span", { className: "input-collapsed-icon", children: "\u203A" }),
@@ -1084,7 +1263,22 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
       /* @__PURE__ */ jsx("button", { className: "input-collapse-btn", onClick: onToggleCollapse, title: "\u6536\u8D77\u9762\u677F", children: "\u2039" })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
-      /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4DD} \u6E90\u6587\u672C" }) }),
+      /* @__PURE__ */ jsxs("div", { className: "card-head", children: [
+        /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u{1F4DD} \u6E90\u6587\u672C" }),
+        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => document.getElementById("txtUpload")?.click(), children: "\u5BFC\u5165\u6587\u4EF6" }),
+        /* @__PURE__ */ jsx("input", { type: "file", accept: ".txt,.md", hidden: true, id: "txtUpload", onChange: async (e) => {
+          const f = e.target.files[0];
+          if (!f) return;
+          try {
+            const text = await f.text();
+            onContentChange(text);
+            toast(`\u5DF2\u5BFC\u5165 ${f.name} (${text.length}\u5B57)`, "ok");
+          } catch {
+            toast("\u5BFC\u5165\u5931\u8D25", "error");
+          }
+          e.target.value = "";
+        } })
+      ] }),
       /* @__PURE__ */ jsx("textarea", { id: "sourceText", value: content, onChange: (e) => onContentChange(e.target.value), placeholder: "\u7C98\u8D34\u5C0F\u8BF4/\u6545\u4E8B/\u5267\u672C\u5168\u6587\uFF0C\u6216\u4F7F\u7528\u4E0B\u65B9\u7AE0\u8282\u7BA1\u7406\u5206\u7AE0...", spellCheck: false }),
       /* @__PURE__ */ jsxs("div", { className: "char-count", children: [
         content.length,
@@ -1129,17 +1323,95 @@ function InputPanel({ project, onUpdate, onAnalyzeAll, styles, generating, hasCh
     /* @__PURE__ */ jsxs("div", { className: "card", children: [
       /* @__PURE__ */ jsx("div", { className: "card-head", children: /* @__PURE__ */ jsx("span", { className: "card-title", children: "\u26A1 \u64CD\u4F5C" }) }),
       /* @__PURE__ */ jsx("div", { className: "gen-actions", children: /* @__PURE__ */ jsx(Button, { block: true, loading: preprocessing, onClick: doPreprocess, children: "\u{1F50D} \u9884\u5904\u7406" }) }),
-      /* @__PURE__ */ jsx("div", { className: "gen-actions", children: /* @__PURE__ */ jsx(Button, { block: true, type: "primary", loading: generating, onClick: () => onAnalyzeAll(selectedModules), children: "\u{1F680} \u4E00\u952E\u5168\u90E8\u5206\u6790" }) }),
-      /* @__PURE__ */ jsx("div", { className: "status-bar info", children: status })
+      /* @__PURE__ */ jsx("div", { className: "gen-actions", children: /* @__PURE__ */ jsx(Button, { block: true, type: "primary", loading: generating, disabled: !hasProvider, onClick: () => {
+        if (!hasProvider) {
+          toast("\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u914D\u7F6EAPI Key", "error");
+          return;
+        }
+        onAnalyzeAll(selectedModules);
+      }, children: "\u{1F680} \u4E00\u952E\u5168\u90E8\u5206\u6790" }) }),
+      retryModules.length > 0 && /* @__PURE__ */ jsxs("div", { className: "analysis-retry", children: [
+        /* @__PURE__ */ jsxs("span", { children: [
+          "\u53EF\u91CD\u8BD5\uFF1A",
+          retryModules.map((type) => MODULES.find((module) => module.id === type)?.name || type).join("\u3001")
+        ] }),
+        /* @__PURE__ */ jsx(Button, { size: "small", loading: generating, onClick: () => onAnalyzeAll(retryModules, retryRun.id), children: "\u91CD\u8BD5\u5931\u8D25\u6A21\u5757" })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "status-bar info", children: status }),
+      project?.preprocess?.global && /* @__PURE__ */ jsxs("div", { className: "preprocess-summary", children: [
+        /* @__PURE__ */ jsx("div", { className: "card-title", style: { fontSize: 13 }, children: "\u{1F4CB} \u9884\u5904\u7406\u5168\u5C40\u5206\u6790" }),
+        project.preprocess.global.title && /* @__PURE__ */ jsxs("div", { className: "pp-field", children: [
+          /* @__PURE__ */ jsx("b", { children: "\u6807\u9898:" }),
+          " ",
+          project.preprocess.global.title
+        ] }),
+        project.preprocess.global.genre && /* @__PURE__ */ jsxs("div", { className: "pp-field", children: [
+          /* @__PURE__ */ jsx("b", { children: "\u7C7B\u578B:" }),
+          " ",
+          project.preprocess.global.genre
+        ] }),
+        project.preprocess.global.conflicts?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "pp-field", children: [
+          /* @__PURE__ */ jsx("b", { children: "\u51B2\u7A81:" }),
+          " ",
+          project.preprocess.global.conflicts.join("; ")
+        ] }),
+        project.preprocess.global.themes?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "pp-field", children: [
+          /* @__PURE__ */ jsx("b", { children: "\u4E3B\u9898:" }),
+          " ",
+          project.preprocess.global.themes.join("; ")
+        ] }),
+        project.preprocess.global.characters?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "pp-field", children: [
+          /* @__PURE__ */ jsx("b", { children: "\u89D2\u8272:" }),
+          " ",
+          project.preprocess.global.characters.map((c) => `${c.name}(${c.role || ""})`).join(", ")
+        ] }),
+        project.preprocess.global.timeline?.length > 0 && /* @__PURE__ */ jsxs("div", { className: "pp-field", children: [
+          /* @__PURE__ */ jsx("b", { children: "\u65F6\u95F4\u7EBF:" }),
+          " ",
+          project.preprocess.global.timeline.map((t) => t.event).join(" \u2192 ")
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "pp-field", style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+          "\u5DF2\u5206\u6BB5 ",
+          project.preprocess.segments?.length || 0,
+          " \u6BB5\uFF0C\u540E\u7EED\u5206\u6790\u5C06\u53C2\u8003\u6B64\u5168\u5C40\u4E0A\u4E0B\u6587"
+        ] })
+      ] })
     ] })
   ] });
 }
-function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, streaming, streamingType, setStreaming, setStreamingType }) {
+function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, analysisScope, streaming, streamingType, setStreaming, setStreamingType, projectRef, hasProvider, flushProject, createServerJob, updateServerJob, recordCompletedAsset }) {
   const [tab, setTab] = useS("characters");
   const [generating, setGenerating] = useS(false);
   const [progress, setProgress] = useS("");
   const [progressPct, setProgressPct] = useS(0);
   const abortRef = useR(null);
+  const [vidTask, setVidTask] = useS(null);
+  const [vidPolling, setVidPolling] = useS(false);
+  const pollRef = useR(null);
+  useE(() => () => {
+    if (pollRef.current) clearTimeout(pollRef.current);
+  }, []);
+  useE(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        const btn = document.querySelector(".result-tab.active");
+        if (btn) {
+          const genBtn = document.querySelector(".result-content .gen-btn-trigger");
+          if (genBtn) genBtn.click();
+          else {
+            const tab2 = btn.textContent.trim();
+            const genBtns = document.querySelectorAll('button[type="primary"]');
+            genBtns.forEach((b) => {
+              if (b.textContent.includes("\u751F\u6210") && !b.disabled) b.click();
+            });
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [project?.id]);
   const results = project?.results || {};
   const characters = results.characters?.characters || [];
   const scenes = results.scenes?.scenes || [];
@@ -1150,6 +1422,7 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, 
       return;
     }
     const content = analysisSource;
+    const targetId = project.id;
     setGenerating(true);
     setStreaming("");
     setStreamingType("");
@@ -1158,7 +1431,7 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, 
     const ac = new AbortController();
     abortRef.current = ac;
     try {
-      await api.analyze({ type, content, visualStyle: project.style, projectId: project.id, characters, scenes }, (d) => {
+      await api.analyze({ type, content, visualStyle: project.style, projectId: targetId, characters, scenes, sourceMode: analysisScope?.mode, chapterId: analysisScope?.mode === "chapter" ? analysisScope.chId : void 0 }, (d) => {
         if (d.status === "start") setProgressPct(40);
         if (d.status === "streaming") {
           setStreamingType(d.type);
@@ -1166,7 +1439,17 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, 
           setProgressPct((prev) => prev < 50 ? 50 : prev);
         }
         if (d.status === "done") {
-          onUpdate({ results: { ...results, [type]: d.result } });
+          if (projectRef?.current?.id !== targetId) return;
+          onUpdate((prev) => prev.id === targetId ? (() => {
+            const prevResults = prev.results || {};
+            const prevType = prevResults[type];
+            let newResult = d.result;
+            if (prevType && typeof prevType === "object" && typeof newResult === "object" && !Array.isArray(newResult)) {
+              newResult = { ...d.result, derivedFromRevision: prev.sourceRevision || 1, stale: false };
+              if (prevType.panelImages && newResult.pages) newResult.panelImages = prevType.panelImages;
+            }
+            return normalizeProject({ ...prev, results: { ...prevResults, [type]: newResult } });
+          })() : prev);
           setStreaming("");
           setStreamingType("");
           setProgress(`${MODULES.find((m) => m.id === type)?.name} \u5B8C\u6210`);
@@ -1178,29 +1461,35 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, 
           }, 1500);
         }
         if (d.status === "error") {
+          setStreaming("");
+          setStreamingType("");
           setProgress("\u9519\u8BEF: " + d.error);
           toast("\u751F\u6210\u5931\u8D25", "error");
         }
       }, ac.signal);
     } catch (e) {
       if (e.name !== "AbortError") {
+        setStreaming("");
+        setStreamingType("");
         setProgress("\u5931\u8D25: " + e.message);
         toast("\u751F\u6210\u5931\u8D25", "error");
       }
     }
     setGenerating(false);
   };
-  useE(() => {
-    window.__analyzeOne = analyzeOne;
-  }, [project, results, characters, scenes]);
+  useE(() => () => {
+    if (abortRef.current) abortRef.current.abort();
+  }, [project?.id]);
   const tabs = [
     { id: "characters", name: "\u{1F3AD} \u89D2\u8272", count: characters.length },
     { id: "scenes", name: "\u{1F3DE}\uFE0F \u573A\u666F", count: scenes.length },
     { id: "storyboard", name: "\u{1F3AC} \u5206\u955C", count: shots.length },
     ...MODULES.filter((m) => m.type === "md").map((m) => ({ id: m.id, name: `${m.icon} ${m.name}` })),
+    { id: "manga", name: "\u{1F4D6} \u6F2B\u753B", count: results.manga?.pages?.length || 0 },
     { id: "knowledge", name: "\u{1F4DA} \u77E5\u8BC6\u5E93" },
     { id: "media", name: "\u{1F5BC}\uFE0F \u5A92\u4F53" },
-    { id: "consistency", name: "\u{1F50D} \u4E00\u81F4\u6027" }
+    { id: "consistency", name: "\u{1F50D} \u4E00\u81F4\u6027" },
+    { id: "snapshots", name: "\u{1F4F8} \u5FEB\u7167" }
   ];
   return /* @__PURE__ */ jsxs("div", { className: "result-panel", children: [
     /* @__PURE__ */ jsxs("div", { className: "result-tabs", children: [
@@ -1209,26 +1498,60 @@ function ResultPanel({ project, onUpdate, styles, onAnalyzeAll, analysisSource, 
         t.count !== void 0 && /* @__PURE__ */ jsx("span", { className: "count", children: t.count })
       ] }, t.id)),
       /* @__PURE__ */ jsxs("div", { style: { marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }, children: [
-        tab !== "media" && tab !== "knowledge" && tab !== "consistency" && /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: generating, onClick: () => analyzeOne(tab), children: generating ? "\u751F\u6210\u4E2D" : "\u751F\u6210" }),
-        /* @__PURE__ */ jsx("a", { href: api.exportMd(project?.id), download: true, children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u5BFC\u51FAMD" }) })
+        tab !== "media" && tab !== "knowledge" && tab !== "consistency" && tab !== "snapshots" && /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: generating, disabled: !hasProvider, onClick: () => {
+          if (!hasProvider) {
+            toast("\u8BF7\u5148\u5728\u8BBE\u7F6E\u4E2D\u914D\u7F6EAPI Key", "error");
+            return;
+          }
+          analyzeOne(tab);
+        }, children: generating ? "\u751F\u6210\u4E2D" : "\u751F\u6210" }),
+        /* @__PURE__ */ jsx("a", { href: api.exportMd(project?.id), download: true, children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u5BFC\u51FAMD" }) }),
+        /* @__PURE__ */ jsx("a", { href: api.exportJson(project?.id), download: true, children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u5BFC\u51FAJSON" }) }),
+        /* @__PURE__ */ jsx("a", { href: api.exportSrt(project?.id), download: true, children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u5BFC\u51FASRT" }) }),
+        /* @__PURE__ */ jsx("a", { href: api.exportManifest(project?.id), download: true, children: /* @__PURE__ */ jsx(Button, { size: "small", children: "Manifest" }) }),
+        /* @__PURE__ */ jsx("a", { href: api.exportDeliveryZip(project?.id), download: true, children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u4EA4\u4ED8ZIP" }) }),
+        [...new Set(shots.map((shot) => shot.episode).filter(Boolean))].map((episode) => /* @__PURE__ */ jsx("a", { href: api.exportEpisodeSrt(project?.id, episode), download: true, children: /* @__PURE__ */ jsxs(Button, { size: "small", children: [
+          "\u7B2C",
+          episode,
+          "\u96C6SRT"
+        ] }) }, episode)),
+        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => {
+          const mod = prompt("\u5BFC\u51FA\u5355\u4E2A\u6A21\u5757\uFF08\u8F93\u5165: characters/scenes/storyboard/manga/script/assets/structure/summary\uFF09");
+          if (mod && results[mod]) {
+            const blob = new Blob([JSON.stringify(results[mod], null, 2)], { type: "application/json" });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `${project?.name}_${mod}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }
+        }, children: "\u5BFC\u51FA\u6A21\u5757" })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "result-content", children: [
+      results[tab]?.stale && /* @__PURE__ */ jsx("div", { className: "stale-notice", children: "\u4E0A\u6E38\u5185\u5BB9\u5DF2\u53D8\u5316\uFF0C\u6B64\u7ED3\u679C\u4E0E\u5173\u8054\u8D44\u4EA7\u53EF\u80FD\u5931\u6548\uFF0C\u8BF7\u91CD\u65B0\u751F\u6210\u540E\u786E\u8BA4\u3002" }),
       generating && /* @__PURE__ */ jsxs("div", { style: { marginBottom: 12, padding: 10, background: "var(--ai-primary-bg)", borderRadius: 8, fontSize: 13 }, children: [
         progress,
         progressPct > 0 && /* @__PURE__ */ jsx("div", { className: "progress-line", children: /* @__PURE__ */ jsx("div", { className: "fill", style: { width: progressPct + "%" } }) })
       ] }),
-      tab === "characters" && /* @__PURE__ */ jsx(CharactersView, { characters, onUpdate: (chars) => onUpdate({ results: { ...results, characters: { characters: chars } } }) }),
-      tab === "scenes" && /* @__PURE__ */ jsx(ScenesView, { scenes, onUpdate: (sc) => onUpdate({ results: { ...results, scenes: { scenes: sc } } }) }),
-      tab === "storyboard" && /* @__PURE__ */ jsx(ShotView, { shots, characters, scenes, onUpdate: (sh) => onUpdate({ results: { ...results, storyboard: { shots: sh } } }) }),
+      tab === "characters" && /* @__PURE__ */ jsx(CharactersView, { characters, onUpdate: (chars) => onUpdate((prev) => ({ results: { ...prev.results, characters: { ...prev.results.characters, characters: chars, charImages: prev.results?.characters?.charImages || {} } } })), project, projectRef, recordCompletedAsset }),
+      tab === "scenes" && /* @__PURE__ */ jsx(ScenesView, { scenes, onUpdate: (sc) => onUpdate((prev) => ({ results: { ...prev.results, scenes: { ...prev.results.scenes, scenes: sc, sceneImages: prev.results?.scenes?.sceneImages || {} } } })), project, projectRef, recordCompletedAsset }),
+      tab === "storyboard" && /* @__PURE__ */ jsx(ShotView, { shots, characters, scenes, onUpdate: (patchOrFn) => onUpdate((prev) => {
+        const prevShots = prev.results?.storyboard?.shots || [];
+        const newShots = typeof patchOrFn === "function" ? patchOrFn(prevShots) : patchOrFn;
+        return { results: { ...prev.results || {}, storyboard: { ...prev.results?.storyboard || {}, shots: newShots } } };
+      }), project, projectRef, createServerJob, updateServerJob, recordCompletedAsset }),
       MODULES.filter((m) => m.type === "md").map((m) => tab === m.id && /* @__PURE__ */ jsx(MdView, { content: streamingType === m.id ? streaming : results[m.id], emptyTip: `\u70B9\u51FB\u53F3\u4E0A\u65B9"\u751F\u6210"\u5F00\u59CB` }, m.id)),
+      tab === "manga" && /* @__PURE__ */ jsx(MangaView, { manga: results.manga, project, onUpdate, projectRef, recordCompletedAsset }),
       tab === "knowledge" && /* @__PURE__ */ jsx(KnowledgeView, { project, onUpdate }),
-      tab === "media" && /* @__PURE__ */ jsx(MediaGen, { styles, project, characters, scenes }),
-      tab === "consistency" && /* @__PURE__ */ jsx(ConsistencyView, { project })
+      tab === "media" && /* @__PURE__ */ jsx(MediaGen, { styles, project, characters, scenes, onUpdate, projectRef, vidTask, setVidTask, vidPolling, setVidPolling, pollRef, createServerJob, updateServerJob, recordCompletedAsset }),
+      tab === "consistency" && /* @__PURE__ */ jsx(ConsistencyView, { project, onUpdate }),
+      tab === "snapshots" && /* @__PURE__ */ jsx(SnapshotView, { project, flushProject })
     ] })
   ] });
 }
-function CharactersView({ characters, onUpdate }) {
+function CharactersView({ characters, onUpdate, project, projectRef, recordCompletedAsset }) {
+  const [genIdx, setGenIdx] = useS(null);
   if (!characters.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u89D2\u8272\u8BBE\u5B9A\u540E\u5C06\u663E\u793A\uFF0C\u6BCF\u89D2\u8272\u542B\u4E00\u5F201x4\u6A2A\u5411\u6392\u5217\u8BBE\u5B9A\u56FEPrompt" });
   const baseFields = [["role", "\u53D9\u4E8B\u529F\u80FD"], ["gender", "\u6027\u522B"], ["age", "\u5E74\u9F84"], ["appearance", "\u5916\u8C8C"], ["personality", "\u6027\u683C"], ["costume", "\u670D\u88C5\u9053\u5177"], ["voiceStyle", "\u8BED\u8A00\u98CE\u683C"], ["relationships", "\u4EBA\u7269\u5173\u7CFB"], ["arc", "\u89D2\u8272\u5F27\u5149"], ["castingReference", "\u9009\u89D2\u53C2\u8003"]];
   const updateField = (i, k, v) => {
@@ -1236,32 +1559,100 @@ function CharactersView({ characters, onUpdate }) {
     c[i] = { ...c[i], [k]: v };
     onUpdate(c);
   };
-  return /* @__PURE__ */ jsxs("div", { className: "grid-cards", children: [
-    characters.map((c, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
-      /* @__PURE__ */ jsxs("div", { className: "item-head", children: [
-        /* @__PURE__ */ jsx("input", { className: "item-name", value: c.name, onChange: (e) => updateField(i, "name", e.target.value) }),
-        /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => onUpdate(characters.filter((_, x) => x !== i)), children: "\u5220" })
+  const charImages = project?.results?.characters?.charImages || {};
+  const genOne = async (i) => {
+    const c = characters[i];
+    const targetProjectId = project.id;
+    const entityId = c.id;
+    if (!c.imagePromptEn) {
+      toast("\u8BE5\u89D2\u8272\u7F3A\u5C11\u82F1\u6587Prompt", "error");
+      return;
+    }
+    setGenIdx(i);
+    try {
+      const r = await api.genImage(c.imagePromptEn, "", "1024x768", project?.style);
+      if (r.ok) {
+        await recordCompletedAsset(targetProjectId, "character", entityId, "image", r.url, { prompt: c.imagePromptEn });
+        toast(`${c.name} \u8BBE\u5B9A\u56FE\u751F\u6210\u5B8C\u6210`, "ok");
+      } else {
+        toast(r.error || "\u751F\u6210\u5931\u8D25", "error");
+      }
+    } catch (e) {
+      toast(e.message, "error");
+    }
+    setGenIdx(null);
+  };
+  const genAll = async () => {
+    for (let i = 0; i < characters.length; i++) {
+      const c = characters[i];
+      const cur = projectRef?.current?.results?.characters?.charImages || charImages;
+      if (cur[c.id] || c.imageUrl) continue;
+      await genOne(i);
+    }
+  };
+  const pending = characters.filter((c) => !charImages[c.id] && !c.imageUrl && c.imagePromptEn).length;
+  return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }, children: [
+      /* @__PURE__ */ jsx("span", { style: { fontWeight: 700, fontSize: 13 }, children: "\u{1F3AD} \u89D2\u8272\u8BBE\u5B9A\u56FE" }),
+      pending > 0 && /* @__PURE__ */ jsxs(Button, { size: "small", type: "primary", loading: genIdx !== null, onClick: genAll, children: [
+        "\u4E00\u952E\u751F\u6210\u5168\u90E8\u8BBE\u5B9A\u56FE (",
+        pending,
+        ")"
       ] }),
-      baseFields.map(([k, label]) => /* @__PURE__ */ jsxs("div", { className: "field", children: [
-        /* @__PURE__ */ jsx("label", { children: label }),
-        /* @__PURE__ */ jsx("input", { value: c[k] || "", onChange: (e) => updateField(i, k, e.target.value) })
-      ] }, k)),
-      /* @__PURE__ */ jsxs("div", { className: "view-prompts", style: { borderTop: "1px dashed var(--ai-border)", paddingTop: 8, marginTop: 8 }, children: [
-        /* @__PURE__ */ jsx("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--ai-text)", marginBottom: 6 }, children: "\u{1F4D0} \u89D2\u8272\u8BBE\u5B9A\u56FE Prompt\uFF08\u5355\u56FE1x4\u6A2A\u5411\u6392\u5217\uFF1A\u9762\u90E8\u7279\u5199/\u6B63\u9762/\u4FA7\u9762/\u80CC\u9762\u5168\u8EAB\uFF09" }),
-        /* @__PURE__ */ jsxs("div", { className: "field", children: [
-          /* @__PURE__ */ jsx("label", { children: "\u8BBE\u5B9A\u56FE Prompt\uFF08\u4E2D\u6587\uFF09" }),
-          /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c.imagePromptZh || "", onChange: (e) => updateField(i, "imagePromptZh", e.target.value), style: { minHeight: 60 } })
-        ] }),
-        /* @__PURE__ */ jsxs("div", { className: "field", children: [
-          /* @__PURE__ */ jsx("label", { children: "\u8BBE\u5B9A\u56FE Prompt\uFF08English\uFF09" }),
-          /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c.imagePromptEn || "", onChange: (e) => updateField(i, "imagePromptEn", e.target.value), style: { minHeight: 60 } })
-        ] })
+      /* @__PURE__ */ jsxs("span", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+        "\u5DF2\u751F\u6210 ",
+        Object.keys(charImages).length,
+        "/",
+        characters.length
       ] })
-    ] }, i)),
-    /* @__PURE__ */ jsx(Button, { onClick: () => onUpdate([...characters, { name: "\u65B0\u89D2\u8272" }]), children: "+ \u65B0\u589E\u89D2\u8272" })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "grid-cards", children: [
+      characters.map((c, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
+        /* @__PURE__ */ jsxs("div", { className: "item-head", children: [
+          /* @__PURE__ */ jsx("input", { className: "item-name", value: c.name, onChange: (e) => updateField(i, "name", e.target.value) }),
+          /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => {
+            if (confirm("\u786E\u8BA4\u5220\u9664\u8BE5\u89D2\u8272\uFF1F")) onUpdate(characters.filter((_, x) => x !== i));
+          }, children: "\u5220" })
+        ] }),
+        (c.imageUrl || charImages[c.id] || charImages[c.name]) && /* @__PURE__ */ jsx("img", { src: c.imageUrl || charImages[c.id] || charImages[c.name], alt: c.name, style: { width: "100%", borderRadius: 8, marginBottom: 8 } }),
+        /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 6, marginBottom: 8 }, children: [
+          /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: genIdx === i, onClick: () => genOne(i), disabled: !c.imagePromptEn, children: c.imageUrl || charImages[c.id] || charImages[c.name] ? "\u91CD\u65B0\u751F\u56FE" : "\u751F\u56FE" }),
+          (c.imageUrl || charImages[c.id] || charImages[c.name]) && /* @__PURE__ */ jsx("a", { href: c.imageUrl || charImages[c.id] || charImages[c.name], download: true, target: "_blank", rel: "noreferrer", children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u4E0B\u8F7D" }) })
+        ] }),
+        baseFields.map(([k, label]) => /* @__PURE__ */ jsxs("div", { className: "field", children: [
+          /* @__PURE__ */ jsx("label", { children: label }),
+          /* @__PURE__ */ jsx("input", { value: c[k] || "", onChange: (e) => updateField(i, k, e.target.value) })
+        ] }, k)),
+        /* @__PURE__ */ jsxs("div", { className: "view-prompts", style: { borderTop: "1px dashed var(--ai-border)", paddingTop: 8, marginTop: 8 }, children: [
+          /* @__PURE__ */ jsx("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--ai-text)", marginBottom: 6 }, children: "\u{1F4D0} \u89D2\u8272\u8BBE\u5B9A\u56FE Prompt\uFF08\u5355\u56FE1x4\u6A2A\u5411\u6392\u5217\uFF1A\u9762\u90E8\u7279\u5199/\u6B63\u9762/\u4FA7\u9762/\u80CC\u9762\u5168\u8EAB\uFF09" }),
+          /* @__PURE__ */ jsxs("div", { className: "field", children: [
+            /* @__PURE__ */ jsx("label", { children: "\u8BBE\u5B9A\u56FE Prompt\uFF08\u4E2D\u6587\uFF09" }),
+            /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 4 }, children: [
+              /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c.imagePromptZh || "", onChange: (e) => updateField(i, "imagePromptZh", e.target.value), style: { minHeight: 60, flex: 1 } }),
+              c.imagePromptZh && /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => {
+                navigator.clipboard.writeText(c.imagePromptZh);
+                toast("\u5DF2\u590D\u5236", "ok");
+              }, children: "\u590D\u5236" })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxs("div", { className: "field", children: [
+            /* @__PURE__ */ jsx("label", { children: "\u8BBE\u5B9A\u56FE Prompt\uFF08English\uFF09" }),
+            /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 4 }, children: [
+              /* @__PURE__ */ jsx("textarea", { className: "prompt", value: c.imagePromptEn || "", onChange: (e) => updateField(i, "imagePromptEn", e.target.value), style: { minHeight: 60, flex: 1 } }),
+              c.imagePromptEn && /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => {
+                navigator.clipboard.writeText(c.imagePromptEn);
+                toast("\u5DF2\u590D\u5236", "ok");
+              }, children: "\u590D\u5236" })
+            ] })
+          ] })
+        ] })
+      ] }, c.id)),
+      /* @__PURE__ */ jsx(Button, { onClick: () => onUpdate([...characters, { id: stableId("char"), name: "\u65B0\u89D2\u8272" }]), children: "+ \u65B0\u589E\u89D2\u8272" })
+    ] })
   ] });
 }
-function ScenesView({ scenes, onUpdate }) {
+function ScenesView({ scenes, onUpdate, project, projectRef, recordCompletedAsset }) {
+  const [genIdx, setGenIdx] = useS(null);
   if (!scenes.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u573A\u666F\u8BBE\u5B9A\u540E\u5C06\u663E\u793A\u5728\u6B64" });
   const fields = [["environment", "\u73AF\u5883"], ["mood", "\u6C1B\u56F4"], ["lighting", "\u5149\u7167"], ["timeOfDay", "\u65F6\u95F4\u6BB5"], ["narrativeFunction", "\u53D9\u4E8B\u529F\u80FD"], ["keyProps", "\u5173\u952E\u9053\u5177"], ["soundDesign", "\u58F0\u97F3\u8BBE\u8BA1"], ["colorPalette", "\u8272\u8C03\u5EFA\u8BAE"], ["compositionHint", "\u6784\u56FE\u5EFA\u8BAE"], ["imagePromptZh", "\u573A\u666F\u56FEPrompt(\u4E2D)"], ["imagePromptEn", "\u573A\u666F\u56FEPrompt(\u82F1)"]];
   const updateField = (i, k, v) => {
@@ -1269,44 +1660,345 @@ function ScenesView({ scenes, onUpdate }) {
     s[i] = { ...s[i], [k]: v };
     onUpdate(s);
   };
-  return /* @__PURE__ */ jsxs("div", { className: "grid-cards", children: [
-    scenes.map((s, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
-      /* @__PURE__ */ jsxs("div", { className: "item-head", children: [
-        /* @__PURE__ */ jsx("input", { className: "item-name", value: s.name, onChange: (e) => updateField(i, "name", e.target.value) }),
-        /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => onUpdate(scenes.filter((_, x) => x !== i)), children: "\u5220" })
+  const sceneImages = project?.results?.scenes?.sceneImages || {};
+  const genOne = async (i) => {
+    const s = scenes[i];
+    const targetProjectId = project.id;
+    const entityId = s.id;
+    if (!s.imagePromptEn) {
+      toast("\u8BE5\u573A\u666F\u7F3A\u5C11\u82F1\u6587Prompt", "error");
+      return;
+    }
+    setGenIdx(i);
+    try {
+      const r = await api.genImage(s.imagePromptEn, "", "1024x768", project?.style);
+      if (r.ok) {
+        await recordCompletedAsset(targetProjectId, "scene", entityId, "image", r.url, { prompt: s.imagePromptEn });
+        toast(`${s.name} \u573A\u666F\u56FE\u751F\u6210\u5B8C\u6210`, "ok");
+      } else {
+        toast(r.error || "\u751F\u6210\u5931\u8D25", "error");
+      }
+    } catch (e) {
+      toast(e.message, "error");
+    }
+    setGenIdx(null);
+  };
+  const genAll = async () => {
+    for (let i = 0; i < scenes.length; i++) {
+      const s = scenes[i];
+      const cur = projectRef?.current?.results?.scenes?.sceneImages || sceneImages;
+      if (cur[s.id] || s.imageUrl) continue;
+      await genOne(i);
+    }
+  };
+  const pending = scenes.filter((s) => !sceneImages[s.id] && !s.imageUrl && s.imagePromptEn).length;
+  return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }, children: [
+      /* @__PURE__ */ jsx("span", { style: { fontWeight: 700, fontSize: 13 }, children: "\u{1F3DE}\uFE0F \u573A\u666F\u8BBE\u5B9A\u56FE" }),
+      pending > 0 && /* @__PURE__ */ jsxs(Button, { size: "small", type: "primary", loading: genIdx !== null, onClick: genAll, children: [
+        "\u4E00\u952E\u751F\u6210\u5168\u90E8\u573A\u666F\u56FE (",
+        pending,
+        ")"
       ] }),
-      fields.map(([k, label]) => /* @__PURE__ */ jsxs("div", { className: "field", children: [
-        /* @__PURE__ */ jsx("label", { children: label }),
-        k.startsWith("imagePrompt") ? /* @__PURE__ */ jsx("textarea", { className: "prompt", value: s[k] || "", onChange: (e) => updateField(i, k, e.target.value) }) : /* @__PURE__ */ jsx("input", { value: s[k] || "", onChange: (e) => updateField(i, k, e.target.value) })
-      ] }, k))
-    ] }, i)),
-    /* @__PURE__ */ jsx(Button, { onClick: () => onUpdate([...scenes, { name: "\u65B0\u573A\u666F" }]), children: "+ \u65B0\u589E\u573A\u666F" })
+      /* @__PURE__ */ jsxs("span", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+        "\u5DF2\u751F\u6210 ",
+        Object.keys(sceneImages).length,
+        "/",
+        scenes.length
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { className: "grid-cards", children: [
+      scenes.map((s, i) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
+        /* @__PURE__ */ jsxs("div", { className: "item-head", children: [
+          /* @__PURE__ */ jsx("input", { className: "item-name", value: s.name, onChange: (e) => updateField(i, "name", e.target.value) }),
+          /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => {
+            if (confirm("\u786E\u8BA4\u5220\u9664\u8BE5\u573A\u666F\uFF1F")) onUpdate(scenes.filter((_, x) => x !== i));
+          }, children: "\u5220" })
+        ] }),
+        (s.imageUrl || sceneImages[s.id] || sceneImages[s.name]) && /* @__PURE__ */ jsx("img", { src: s.imageUrl || sceneImages[s.id] || sceneImages[s.name], alt: s.name, style: { width: "100%", borderRadius: 8, marginBottom: 8 } }),
+        /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 6, marginBottom: 8 }, children: [
+          /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: genIdx === i, onClick: () => genOne(i), disabled: !s.imagePromptEn, children: s.imageUrl || sceneImages[s.id] || sceneImages[s.name] ? "\u91CD\u65B0\u751F\u56FE" : "\u751F\u56FE" }),
+          (s.imageUrl || sceneImages[s.id] || sceneImages[s.name]) && /* @__PURE__ */ jsx("a", { href: s.imageUrl || sceneImages[s.id] || sceneImages[s.name], download: true, target: "_blank", rel: "noreferrer", children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u4E0B\u8F7D" }) })
+        ] }),
+        fields.map(([k, label]) => {
+          if (k.startsWith("imagePrompt")) {
+            return /* @__PURE__ */ jsxs("div", { className: "field", children: [
+              /* @__PURE__ */ jsx("label", { children: label }),
+              /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 4 }, children: [
+                s[k] && /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => {
+                  navigator.clipboard.writeText(s[k]);
+                  toast("\u5DF2\u590D\u5236", "ok");
+                }, children: "\u590D\u5236" }),
+                /* @__PURE__ */ jsx("textarea", { className: "prompt", value: s[k] || "", onChange: (e) => updateField(i, k, e.target.value), style: { flex: 1 } })
+              ] })
+            ] }, k);
+          }
+          return /* @__PURE__ */ jsxs("div", { className: "field", children: [
+            /* @__PURE__ */ jsx("label", { children: label }),
+            /* @__PURE__ */ jsx("input", { value: s[k] || "", onChange: (e) => updateField(i, k, e.target.value) })
+          ] }, k);
+        })
+      ] }, s.id)),
+      /* @__PURE__ */ jsx(Button, { onClick: () => onUpdate([...scenes, { id: stableId("scene"), name: "\u65B0\u573A\u666F" }]), children: "+ \u65B0\u589E\u573A\u666F" })
+    ] })
   ] });
 }
-function ShotView({ shots, characters, scenes, onUpdate }) {
+function ShotView({ shots, characters, scenes, onUpdate, project, projectRef, createServerJob, updateServerJob, recordCompletedAsset }) {
   const [view, setView] = useS("table");
   const [filterEp, setFilterEp] = useS("");
   const [filterScene, setFilterScene] = useS("");
+  const [filterPending, setFilterPending] = useS(false);
+  const [genKey, setGenKey] = useS(null);
+  const [useCharRef, setUseCharRef] = useS(true);
   if (!shots.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u5148\u751F\u6210\u89D2\u8272\u4E0E\u573A\u666F\u8BBE\u5B9A\uFF0C\u518D\u70B9\u51FB\u53F3\u4E0A\u65B9\u751F\u6210\u6309\u94AE" });
   const eps = [...new Set(shots.map((s) => s.episode))];
   let filtered = shots;
   if (filterEp) filtered = filtered.filter((s) => s.episode == filterEp);
   if (filterScene) filtered = filtered.filter((s) => s.sceneName === filterScene);
+  if (filterPending) filtered = filtered.filter((s) => !s.videoUrl);
   const charName = (names) => (names || []).join("\u3001");
+  const updateShot = (realIdx, patch) => onUpdate((prevShots) => {
+    const arr = [...prevShots || shots];
+    arr[realIdx] = { ...arr[realIdx], ...patch };
+    return arr;
+  });
   const update = (idx, k, v) => {
-    const sh = [...shots];
     const i = shots.indexOf(filtered[idx]);
-    sh[i] = { ...sh[i], [k]: v };
-    onUpdate(sh);
+    updateShot(i, { [k]: v });
   };
   const moveShot = (idx, dir) => {
     const i = shots.indexOf(filtered[idx]);
     const j = i + dir;
     if (j < 0 || j >= shots.length) return;
-    [shots[i], shots[j]] = [shots[j], shots[i]];
-    onUpdate([...shots]);
+    onUpdate((prevShots) => {
+      const arr = [...prevShots || shots];
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return arr;
+    });
+  };
+  const charImages = project?.results?.characters?.charImages || {};
+  const sceneImages = project?.results?.scenes?.sceneImages || {};
+  const charMap = {};
+  characters.forEach((c) => {
+    charMap[c.name] = c;
+  });
+  const sceneMap = {};
+  scenes.forEach((s) => {
+    sceneMap[s.name] = s;
+  });
+  const getRefImages = (s, previousShot) => {
+    const refs = [];
+    if (previousShot?.keyframeUrl) refs.push(previousShot.keyframeUrl);
+    if (useCharRef && s.characterNames?.length) s.characterNames.forEach((n) => {
+      if (charImages[n]) refs.push(charImages[n]);
+    });
+    if (useCharRef && s.sceneName && sceneImages[s.sceneName]) refs.push(sceneImages[s.sceneName]);
+    return refs.length ? refs : void 0;
+  };
+  const buildKeyframePrompt = (s, previousShot) => {
+    let p = s.promptEn || "";
+    const parts = [];
+    if (s.characterNames?.length) {
+      s.characterNames.forEach((n) => {
+        const c = charMap[n];
+        if (c) parts.push(`Character "${n}": ${c.appearance || ""}, wearing ${c.costume || ""}`);
+      });
+    }
+    if (s.sceneName) {
+      const sc = sceneMap[s.sceneName];
+      if (sc) parts.push(`Scene "${s.sceneName}": ${sc.environment || ""}, ${sc.lighting || ""} lighting, ${sc.mood || ""} atmosphere`);
+    }
+    if (previousShot) {
+      const continuity = [
+        previousShot.continuityNote || previousShot.notes,
+        previousShot.visual && `Previous visual: ${previousShot.visual}`,
+        previousShot.action && `Previous action: ${previousShot.action}`,
+        (previousShot.characterState || previousShot.charactersState) && `Character state: ${previousShot.characterState || previousShot.charactersState}`,
+        previousShot.sceneState && `Scene state: ${previousShot.sceneState}`
+      ].filter(Boolean);
+      if (continuity.length) parts.push(`Continue from shot ${previousShot.id}: ${continuity.join("; ")}`);
+    }
+    if (parts.length) p = parts.join(". ") + ". " + p;
+    return p;
+  };
+  const withKeyframe = shots.filter((s) => s.keyframeUrl).length;
+  const withVideo = shots.filter((s) => s.videoUrl).length;
+  const total = shots.length;
+  const coverage = { total, withKeyframe, withVideo, pending: total - withVideo };
+  const getShot = (realIdx) => projectRef?.current?.results?.storyboard?.shots?.find((item) => item.id === shots[realIdx]?.id) || shots[realIdx];
+  const findPreviousShot = (shotId) => {
+    const currentShots = projectRef?.current?.results?.storyboard?.shots || shots;
+    const index = currentShots.findIndex((item) => item.id === shotId);
+    return index > 0 ? currentShots[index - 1] : null;
+  };
+  const genKeyframe = async (shotId) => {
+    const currentShots = projectRef?.current?.results?.storyboard?.shots || shots;
+    const s = currentShots.find((item) => item.id === shotId);
+    if (!s || !s.promptEn) {
+      toast("\u8BE5\u5206\u955C\u7F3A\u5C11\u82F1\u6587Prompt", "error");
+      return false;
+    }
+    const targetProjectId = project.id;
+    const entityId = s.id;
+    const key = `kf-${entityId}`;
+    setGenKey(key);
+    try {
+      const previousShot = findPreviousShot(shotId);
+      const refs = getRefImages(s, previousShot);
+      const enhancedPrompt = buildKeyframePrompt(s, previousShot);
+      const r = await api.genImage(enhancedPrompt, "", "1024x768", project?.style, refs);
+      if (r.ok) {
+        await recordCompletedAsset(targetProjectId, "shot", entityId, "keyframe", r.url, { prompt: enhancedPrompt });
+        toast(`\u5206\u955C${s.episode}-${s.sceneNo}-${s.shotNo} \u5173\u952E\u5E27\u751F\u6210\u5B8C\u6210`, "ok");
+        setGenKey(null);
+        return r.url;
+      } else {
+        toast(r.error || "\u751F\u6210\u5931\u8D25", "error");
+        setGenKey(null);
+        return false;
+      }
+    } catch (e) {
+      toast(e.message, "error");
+      setGenKey(null);
+      return false;
+    }
+  };
+  const genShotVideo = async (realIdx, keyframeUrl) => {
+    const s = getShot(realIdx);
+    if (!s) return false;
+    const imageUrl = keyframeUrl || s.keyframeUrl;
+    if (!imageUrl) {
+      toast(`\u5206\u955C${s.episode}-${s.sceneNo}-${s.shotNo} \u8BF7\u5148\u751F\u6210\u5173\u952E\u5E27`, "error");
+      return false;
+    }
+    const targetProjectId = project.id;
+    const entityId = s.id;
+    const key = `vd-${entityId}`;
+    setGenKey(key);
+    try {
+      const enhancedPrompt = buildKeyframePrompt(s);
+      const params = { prompt: enhancedPrompt, visualStyle: project?.style, image: imageUrl, num_frames: 121, frame_rate: 24, height: 768, width: 1152 };
+      const r = await api.genVideo(params);
+      if (r.ok && r.video_id) {
+        const job = await createServerJob(targetProjectId, { type: "video", entityType: "shot", entityId, providerTaskId: r.video_id, status: r.status || "processing", params });
+        return new Promise((resolve) => {
+          let attempts = 0;
+          const delay = 1e4;
+          const poll = async () => {
+            attempts++;
+            try {
+              const vr = await api.getVideo(r.video_id);
+              if (vr.rate_limited) {
+                if (attempts < 60) {
+                  setTimeout(poll, Math.min(delay * 1.5, 3e4));
+                } else {
+                  toast("\u89C6\u9891\u751F\u6210\u8D85\u65F6(\u9650\u6D41)", "error");
+                  setGenKey(null);
+                  resolve(false);
+                }
+                return;
+              }
+              if (vr.status === "completed") {
+                await updateServerJob(targetProjectId, job.id, { status: "completed", asset: { kind: "video", url: vr.url, prompt: enhancedPrompt, parentAssetId: getShot(realIdx)?.keyframeAssetId } });
+                toast(`\u5206\u955C${s.episode}-${s.sceneNo}-${s.shotNo} \u89C6\u9891\u751F\u6210\u5B8C\u6210`, "ok");
+                setGenKey(null);
+                resolve(true);
+                return;
+              }
+              if (vr.status === "failed") {
+                await updateServerJob(targetProjectId, job.id, { status: "failed", error: vr.error || "\u89C6\u9891\u751F\u6210\u5931\u8D25" });
+                toast("\u89C6\u9891\u751F\u6210\u5931\u8D25", "error");
+                setGenKey(null);
+                resolve(false);
+                return;
+              }
+              if (vr.status && vr.status !== job.status) {
+                await updateServerJob(targetProjectId, job.id, { status: vr.status, progress: vr.progress });
+                job.status = vr.status;
+              }
+              if (attempts < 60) {
+                setTimeout(poll, delay);
+              } else {
+                toast("\u89C6\u9891\u751F\u6210\u8D85\u65F6", "error");
+                setGenKey(null);
+                resolve(false);
+              }
+            } catch (e) {
+              toast(e.message, "error");
+              setGenKey(null);
+              resolve(false);
+            }
+          };
+          toast(`\u5206\u955C${s.episode}-${s.sceneNo}-${s.shotNo} \u89C6\u9891\u4EFB\u52A1\u5DF2\u521B\u5EFA...`, "info");
+          poll();
+        });
+      } else {
+        toast(r.error || "\u521B\u5EFA\u89C6\u9891\u4EFB\u52A1\u5931\u8D25", "error");
+        setGenKey(null);
+        return false;
+      }
+    } catch (e) {
+      toast(e.message, "error");
+      setGenKey(null);
+      return false;
+    }
+  };
+  const genAllVideos = async () => {
+    for (let realIdx = 0; realIdx < shots.length; realIdx++) {
+      const s = getShot(realIdx);
+      if (!s || s.videoUrl) continue;
+      let keyframeUrl = s.keyframeUrl;
+      if (!keyframeUrl) {
+        keyframeUrl = await genKeyframe(s.id);
+        if (!keyframeUrl) continue;
+      }
+      await genShotVideo(realIdx, keyframeUrl);
+    }
+  };
+  const estimateDuration = (s) => {
+    const words = (s.dialogue || "").length;
+    const dialogueSec = words / 3.5;
+    const actionBeats = (s.action || "").split(/[，,；;。]/).filter(Boolean).length;
+    const actionSec = actionBeats * 0.8;
+    return Math.max(3, Math.min(10, Math.round(dialogueSec + actionSec)));
+  };
+  const recalcDurations = () => {
+    onUpdate((prevShots) => {
+      const arr = [...prevShots || shots];
+      arr.forEach((s, i) => {
+        arr[i] = { ...s, duration: estimateDuration(s) };
+      });
+      return arr;
+    });
+    toast("\u5DF2\u91CD\u65B0\u4F30\u7B97\u65F6\u957F", "ok");
   };
   return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsx("div", { className: "card", style: { marginBottom: 12 }, children: /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }, children: [
+      /* @__PURE__ */ jsx("span", { style: { fontWeight: 700, fontSize: 13 }, children: "\u{1F4CA} \u5206\u955C\u8986\u76D6\u7387" }),
+      /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 12, fontSize: 12, alignItems: "center" }, children: [
+        /* @__PURE__ */ jsxs("span", { children: [
+          "\u603B\u8BA1 ",
+          total
+        ] }),
+        /* @__PURE__ */ jsxs("span", { style: { color: "var(--ai-text-muted)" }, children: [
+          "\u5173\u952E\u5E27 ",
+          withKeyframe,
+          "/",
+          total
+        ] }),
+        /* @__PURE__ */ jsxs("span", { style: { color: "var(--ai-text-muted)" }, children: [
+          "\u89C6\u9891 ",
+          withVideo,
+          "/",
+          total
+        ] }),
+        /* @__PURE__ */ jsxs("span", { style: { color: withVideo === total ? "var(--ai-success)" : "var(--ai-warning)" }, children: [
+          "\u672A\u5B8C\u6210 ",
+          coverage.pending
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "progress-line", style: { flex: 1, minWidth: 100, maxWidth: 200 }, children: /* @__PURE__ */ jsx("div", { className: "fill", style: { width: (total ? withVideo / total * 100 : 0) + "%" } }) })
+    ] }) }),
     /* @__PURE__ */ jsxs("div", { className: "shot-toolbar", children: [
       /* @__PURE__ */ jsxs("select", { value: filterEp, onChange: (e) => setFilterEp(e.target.value), children: [
         /* @__PURE__ */ jsx("option", { value: "", children: "\u5168\u90E8\u96C6" }),
@@ -1320,14 +2012,32 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
         /* @__PURE__ */ jsx("option", { value: "", children: "\u5168\u90E8\u573A\u666F" }),
         scenes.map((s, i) => /* @__PURE__ */ jsx("option", { value: s.name, children: s.name }, i))
       ] }),
+      /* @__PURE__ */ jsxs("label", { style: { fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }, children: [
+        /* @__PURE__ */ jsx("input", { type: "checkbox", checked: filterPending, onChange: (e) => setFilterPending(e.target.checked) }),
+        "\u4EC5\u672A\u751F\u6210\u89C6\u9891"
+      ] }),
       /* @__PURE__ */ jsxs("div", { className: "seg", children: [
         /* @__PURE__ */ jsx("button", { className: view === "table" ? "active" : "", onClick: () => setView("table"), children: "\u8868\u683C" }),
         /* @__PURE__ */ jsx("button", { className: view === "grid" ? "active" : "", onClick: () => setView("grid"), children: "\u7F51\u683C" })
       ] }),
-      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => onUpdate([...shots, { episode: 1, sceneNo: 1, shotNo: shots.length + 1, shotType: "\u4E2D\u666F", duration: 4, characterNames: [], sceneName: scenes[0]?.name || "" }]), children: "+ \u65B0\u589E\u5206\u955C" })
+      /* @__PURE__ */ jsxs("label", { style: { fontSize: 11, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }, title: "\u4F7F\u7528\u89D2\u8272\u8BBE\u5B9A\u56FE\u4F5C\u4E3A\u53C2\u8003\u56FE\u4FDD\u6301\u4E00\u81F4\u6027", children: [
+        /* @__PURE__ */ jsx("input", { type: "checkbox", checked: useCharRef, onChange: (e) => setUseCharRef(e.target.checked) }),
+        "\u{1F512}\u89D2\u8272\u4E00\u81F4\u6027"
+      ] }),
+      /* @__PURE__ */ jsx(Button, { size: "small", onClick: recalcDurations, children: "\u23F1 \u91CD\u7B97\u65F6\u957F" }),
+      /* @__PURE__ */ jsxs(Button, { size: "small", type: "primary", loading: genKey !== null, onClick: genAllVideos, disabled: coverage.pending === 0, children: [
+        "\u{1F3AC} \u4E00\u952E\u751F\u6210\u5168\u90E8\u89C6\u9891 (",
+        coverage.pending,
+        ")"
+      ] }),
+      /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => onUpdate((prevShots) => {
+        const arr = prevShots || [];
+        return [...arr, { id: stableId("shot"), episode: 1, sceneNo: 1, shotNo: arr.length + 1, shotType: "\u4E2D\u666F", duration: 4, characterNames: [], sceneName: scenes[0]?.name || "" }];
+      }), children: "+ \u65B0\u589E\u5206\u955C" })
     ] }),
-    view === "table" ? /* @__PURE__ */ jsxs("table", { className: "shots", children: [
+    view === "table" ? /* @__PURE__ */ jsx("div", { className: "shots-scroll", children: /* @__PURE__ */ jsxs("table", { className: "shots", children: [
       /* @__PURE__ */ jsx("thead", { children: /* @__PURE__ */ jsxs("tr", { children: [
+        /* @__PURE__ */ jsx("th", { className: "num", children: "\u7F29\u7565" }),
         /* @__PURE__ */ jsx("th", { className: "num", children: "\u96C6" }),
         /* @__PURE__ */ jsx("th", { className: "num", children: "\u573A" }),
         /* @__PURE__ */ jsx("th", { className: "num", children: "\u955C" }),
@@ -1336,112 +2046,128 @@ function ShotView({ shots, characters, scenes, onUpdate }) {
         /* @__PURE__ */ jsx("th", { children: "\u5BF9\u767D" }),
         /* @__PURE__ */ jsx("th", { children: "\u52A8\u4F5C" }),
         /* @__PURE__ */ jsx("th", { children: "\u5B57\u5E55" }),
-        /* @__PURE__ */ jsx("th", { children: "\u53D9\u4E8B" }),
-        /* @__PURE__ */ jsx("th", { children: "\u58F0\u97F3" }),
-        /* @__PURE__ */ jsx("th", { children: "\u8F6C\u573A" }),
-        /* @__PURE__ */ jsx("th", { children: "\u8FDE\u8D2F" }),
         /* @__PURE__ */ jsx("th", { className: "num", children: "\u79D2" }),
         /* @__PURE__ */ jsx("th", { children: "\u89D2\u8272" }),
         /* @__PURE__ */ jsx("th", { children: "\u573A\u666F" }),
-        /* @__PURE__ */ jsx("th", { className: "prompt-cell", children: "Prompt(\u4E2D)" }),
         /* @__PURE__ */ jsx("th", { className: "prompt-cell", children: "Prompt(\u82F1)" }),
+        /* @__PURE__ */ jsx("th", { children: "\u5BFC\u6F14\u5907\u6CE8" }),
         /* @__PURE__ */ jsx("th", {})
       ] }) }),
-      /* @__PURE__ */ jsx("tbody", { children: filtered.map((s, idx) => /* @__PURE__ */ jsxs("tr", { children: [
-        /* @__PURE__ */ jsx("td", { className: "num", children: s.episode }),
-        /* @__PURE__ */ jsx("td", { className: "num", children: s.sceneNo }),
-        /* @__PURE__ */ jsx("td", { className: "num", children: s.shotNo }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "shotType", e.target.textContent), children: s.shotType }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "visual", e.target.textContent), children: s.visual }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "dialogue", e.target.textContent), children: s.dialogue }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "action", e.target.textContent), children: s.action }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "subtitle", e.target.textContent), children: s.subtitle || "" }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "narrativePurpose", e.target.textContent), children: s.narrativePurpose || "" }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "soundDesign", e.target.textContent), children: s.soundDesign }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "nextShotTransition", e.target.textContent), children: s.nextShotTransition || s.transition || "" }) }),
-        /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "continuityNote", e.target.textContent), children: s.continuityNote || "" }) }),
-        /* @__PURE__ */ jsx("td", { className: "num", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "duration", parseInt(e.target.textContent) || 0), children: s.duration }) }),
-        /* @__PURE__ */ jsx("td", { children: charName(s.characterNames) }),
-        /* @__PURE__ */ jsx("td", { children: s.sceneName }),
-        /* @__PURE__ */ jsx("td", { className: "prompt-cell", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "promptZh", e.target.textContent), children: s.promptZh }) }),
-        /* @__PURE__ */ jsx("td", { className: "prompt-cell", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "promptEn", e.target.textContent), children: s.promptEn }) }),
-        /* @__PURE__ */ jsxs("td", { children: [
-          /* @__PURE__ */ jsx("button", { className: "btn sm ghost", title: "\u590D\u5236EN Prompt", onClick: () => {
+      /* @__PURE__ */ jsx("tbody", { children: filtered.map((s, idx) => {
+        const realIdx = shots.indexOf(s);
+        return /* @__PURE__ */ jsxs("tr", { className: s.videoUrl ? "row-done" : s.keyframeUrl ? "row-partial" : "", children: [
+          /* @__PURE__ */ jsx("td", { className: "num", children: s.keyframeUrl ? /* @__PURE__ */ jsx("img", { src: s.keyframeUrl, style: { width: 48, height: 27, objectFit: "cover", borderRadius: 3 } }) : s.videoUrl ? "\u{1F3AC}" : "\u2014" }),
+          /* @__PURE__ */ jsx("td", { className: "num", children: s.episode }),
+          /* @__PURE__ */ jsx("td", { className: "num", children: s.sceneNo }),
+          /* @__PURE__ */ jsx("td", { className: "num", children: s.shotNo }),
+          /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "shotType", e.target.textContent), children: s.shotType }) }),
+          /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "visual", e.target.textContent), children: s.visual }) }),
+          /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "dialogue", e.target.textContent), children: s.dialogue }) }),
+          /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "action", e.target.textContent), children: s.action }) }),
+          /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "subtitle", e.target.textContent), children: s.subtitle || "" }) }),
+          /* @__PURE__ */ jsx("td", { className: "num", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "duration", parseInt(e.target.textContent) || 0), children: s.duration }) }),
+          /* @__PURE__ */ jsx("td", { children: charName(s.characterNames) }),
+          /* @__PURE__ */ jsx("td", { children: s.sceneName }),
+          /* @__PURE__ */ jsx("td", { className: "prompt-cell", children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "promptEn", e.target.textContent), children: s.promptEn }) }),
+          /* @__PURE__ */ jsx("td", { children: /* @__PURE__ */ jsx("div", { className: "cell-edit", contentEditable: true, suppressContentEditableWarning: true, onBlur: (e) => update(idx, "notes", e.target.textContent), children: s.notes || "" }) }),
+          /* @__PURE__ */ jsx("td", { className: "shot-actions-cell", children: /* @__PURE__ */ jsxs("div", { className: "shot-actions", children: [
+            /* @__PURE__ */ jsx("button", { className: "btn sm ghost", title: "\u590D\u5236EN Prompt", onClick: () => {
+              navigator.clipboard?.writeText(s.promptEn);
+              toast("\u5DF2\u590D\u5236EN", "ok");
+            }, children: "\u590D\u5236" }),
+            /* @__PURE__ */ jsx("button", { className: "btn sm", title: "\u751F\u6210\u5173\u952E\u5E27", disabled: !!genKey, onClick: () => genKeyframe(s.id), children: genKey === `kf-${s.id}` ? "..." : s.keyframeUrl ? "\u{1F504}" : "\u{1F5BC}" }),
+            /* @__PURE__ */ jsx("button", { className: "btn sm", title: "\u751F\u6210\u89C6\u9891", disabled: !!genKey, onClick: () => genShotVideo(realIdx), children: genKey === `vd-${s.id}` ? "..." : s.videoUrl ? "\u2705" : "\u{1F3AC}" }),
+            /* @__PURE__ */ jsx("button", { className: "btn sm ghost", onClick: () => moveShot(idx, -1), children: "\u2191" }),
+            /* @__PURE__ */ jsx("button", { className: "btn sm ghost", onClick: () => moveShot(idx, 1), children: "\u2193" }),
+            /* @__PURE__ */ jsx("button", { className: "btn sm ghost danger", onClick: () => {
+              if (confirm("\u786E\u8BA4\u5220\u9664\u8BE5\u5206\u955C\uFF1F")) onUpdate((prevShots) => {
+                const arr = prevShots || shots;
+                return arr.filter((_, x) => x !== realIdx);
+              });
+            }, children: "\u5220" })
+          ] }) })
+        ] }, s.id);
+      }) })
+    ] }) }) : /* @__PURE__ */ jsx("div", { className: "shot-grid", children: filtered.map((s, idx) => {
+      const realIdx = shots.indexOf(s);
+      return /* @__PURE__ */ jsxs("div", { className: "shot-tile", children: [
+        /* @__PURE__ */ jsxs("div", { className: "tile-head", children: [
+          /* @__PURE__ */ jsxs("span", { children: [
+            "\u7B2C",
+            s.episode,
+            "\u96C6\xB7",
+            s.sceneNo,
+            "\u573A\xB7",
+            s.shotNo,
+            "\u955C"
+          ] }),
+          /* @__PURE__ */ jsxs("span", { className: "badge", children: [
+            s.shotType,
+            " ",
+            s.duration,
+            "s"
+          ] })
+        ] }),
+        s.keyframeUrl && /* @__PURE__ */ jsx("img", { src: s.keyframeUrl, style: { width: "100%", borderRadius: 6, marginBottom: 6 } }),
+        s.videoUrl && /* @__PURE__ */ jsx("video", { src: s.videoUrl, controls: true, style: { width: "100%", borderRadius: 6, marginBottom: 6 } }),
+        s.narrativePurpose && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--ai-primary)", marginBottom: 4 }, children: [
+          "\u{1F3AF} ",
+          s.narrativePurpose
+        ] }),
+        /* @__PURE__ */ jsx("div", { className: "tile-visual", children: s.visual }),
+        s.action && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text)", marginBottom: 4 }, children: [
+          "\u{1F3C3} ",
+          s.action
+        ] }),
+        s.dialogue && /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, color: "var(--ai-text-muted)" }, children: [
+          "\u300C",
+          s.dialogue,
+          "\u300D"
+        ] }),
+        s.subtitle && s.subtitle !== s.dialogue && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-secondary)" }, children: [
+          "\u{1F4DD} ",
+          s.subtitle
+        ] }),
+        s.soundDesign && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+          "\u{1F50A} ",
+          s.soundDesign
+        ] }),
+        s.continuityNote && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-warning)", borderTop: "1px dashed var(--ai-border-light)", paddingTop: 4, marginTop: 4 }, children: [
+          "\u{1F517} ",
+          s.continuityNote
+        ] }),
+        s.nextShotTransition && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
+          "\u2192 ",
+          s.nextShotTransition
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "tile-prompt", children: [
+          /* @__PURE__ */ jsx("b", { children: "\u4E2D" }),
+          "\uFF1A",
+          s.promptZh,
+          /* @__PURE__ */ jsx("br", {}),
+          /* @__PURE__ */ jsx("b", { children: "EN" }),
+          "\uFF1A",
+          s.promptEn
+        ] }),
+        /* @__PURE__ */ jsx("input", { className: "cell-edit", style: { width: "100%", marginTop: 4, fontSize: 11 }, placeholder: "\u5BFC\u6F14\u5907\u6CE8...", defaultValue: s.notes || "", onBlur: (e) => update(idx, "notes", e.target.value) }),
+        /* @__PURE__ */ jsxs("div", { className: "tile-actions", children: [
+          /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => {
             navigator.clipboard?.writeText(s.promptEn);
             toast("\u5DF2\u590D\u5236EN", "ok");
-          }, children: "\u590D\u5236" }),
-          /* @__PURE__ */ jsx("button", { className: "btn sm ghost", onClick: () => moveShot(idx, -1), children: "\u2191" }),
-          /* @__PURE__ */ jsx("button", { className: "btn sm ghost", onClick: () => moveShot(idx, 1), children: "\u2193" }),
-          /* @__PURE__ */ jsx("button", { className: "btn sm ghost danger", onClick: () => onUpdate(shots.filter((_, x) => x !== shots.indexOf(s))), children: "\u5220" })
+          }, children: "\u590D\u5236EN" }),
+          /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: genKey === `kf-${s.id}`, onClick: () => genKeyframe(s.id), disabled: !s.promptEn, children: s.keyframeUrl ? "\u{1F504}\u5173\u952E\u5E27" : "\u{1F5BC}\u5173\u952E\u5E27" }),
+          /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: genKey === `vd-${s.id}`, onClick: () => genShotVideo(realIdx), disabled: !s.keyframeUrl, children: s.videoUrl ? "\u{1F504}\u89C6\u9891" : "\u{1F3AC}\u89C6\u9891" }),
+          /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => moveShot(idx, -1), children: "\u2191" }),
+          /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => moveShot(idx, 1), children: "\u2193" }),
+          /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => {
+            if (confirm("\u786E\u8BA4\u5220\u9664\u8BE5\u5206\u955C\uFF1F")) onUpdate((prevShots) => {
+              const arr = prevShots || shots;
+              return arr.filter((_, x) => x !== realIdx);
+            });
+          }, children: "\u5220" })
         ] })
-      ] }, idx)) })
-    ] }) : /* @__PURE__ */ jsx("div", { className: "shot-grid", children: filtered.map((s, idx) => /* @__PURE__ */ jsxs("div", { className: "shot-tile", children: [
-      /* @__PURE__ */ jsxs("div", { className: "tile-head", children: [
-        /* @__PURE__ */ jsxs("span", { children: [
-          "\u7B2C",
-          s.episode,
-          "\u96C6\xB7",
-          s.sceneNo,
-          "\u573A\xB7",
-          s.shotNo,
-          "\u955C"
-        ] }),
-        /* @__PURE__ */ jsxs("span", { className: "badge", children: [
-          s.shotType,
-          " ",
-          s.duration,
-          "s"
-        ] })
-      ] }),
-      s.narrativePurpose && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--ai-primary)", marginBottom: 4 }, children: [
-        "\u{1F3AF} ",
-        s.narrativePurpose
-      ] }),
-      /* @__PURE__ */ jsx("div", { className: "tile-visual", children: s.visual }),
-      s.action && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text)", marginBottom: 4 }, children: [
-        "\u{1F3C3} ",
-        s.action
-      ] }),
-      s.dialogue && /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, color: "var(--ai-text-muted)" }, children: [
-        "\u300C",
-        s.dialogue,
-        "\u300D"
-      ] }),
-      s.subtitle && s.subtitle !== s.dialogue && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-secondary)" }, children: [
-        "\u{1F4DD} ",
-        s.subtitle
-      ] }),
-      s.soundDesign && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
-        "\u{1F50A} ",
-        s.soundDesign
-      ] }),
-      s.continuityNote && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-warning)", borderTop: "1px dashed var(--ai-border-light)", paddingTop: 4, marginTop: 4 }, children: [
-        "\u{1F517} ",
-        s.continuityNote
-      ] }),
-      s.nextShotTransition && /* @__PURE__ */ jsxs("div", { style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: [
-        "\u2192 ",
-        s.nextShotTransition
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "tile-prompt", children: [
-        /* @__PURE__ */ jsx("b", { children: "\u4E2D" }),
-        "\uFF1A",
-        s.promptZh,
-        /* @__PURE__ */ jsx("br", {}),
-        /* @__PURE__ */ jsx("b", { children: "EN" }),
-        "\uFF1A",
-        s.promptEn
-      ] }),
-      /* @__PURE__ */ jsxs("div", { className: "tile-actions", children: [
-        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => {
-          navigator.clipboard?.writeText(s.promptEn);
-          toast("\u5DF2\u590D\u5236EN", "ok");
-        }, children: "\u590D\u5236EN" }),
-        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => moveShot(idx, -1), children: "\u2191" }),
-        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => moveShot(idx, 1), children: "\u2193" }),
-        /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => onUpdate(shots.filter((_, x) => x !== shots.indexOf(s))), children: "\u5220" })
-      ] })
-    ] }, idx)) })
+      ] }, s.id);
+    }) })
   ] });
 }
 function MdView({ content, emptyTip }) {
@@ -1480,9 +2206,9 @@ function KnowledgeView({ project, onUpdate }) {
     ] }, i))
   ] });
 }
-function MediaGen({ styles, project, characters, scenes }) {
+function MediaGen({ styles, project, characters, scenes, onUpdate, projectRef, vidTask, setVidTask, vidPolling, setVidPolling, pollRef, createServerJob, updateServerJob, recordCompletedAsset }) {
   const [tab, setTab] = useS("image");
-  const [prompt, setPrompt] = useS("");
+  const [prompt2, setPrompt] = useS("");
   const [negPrompt, setNegPrompt] = useS("");
   const [size, setSize] = useS("1024x768");
   const [gen, setGen] = useS(false);
@@ -1491,13 +2217,13 @@ function MediaGen({ styles, project, characters, scenes }) {
   const [refImage, setRefImage] = useS("");
   const [vidDuration, setVidDuration] = useS("5");
   const [vidRatio, setVidRatio] = useS("16:9");
-  const [vidTask, setVidTask] = useS(null);
-  const [vidPolling, setVidPolling] = useS(false);
-  const pollRef = useR(null);
+  const [histOpen, setHistOpen] = useS(false);
+  const mediaHistory = project?.results?.media || [];
+  const delMedia = (id) => onUpdate((prev) => ({ results: { ...prev.results || {}, media: (prev.results?.media || []).filter((m) => m.id !== id) } }));
   const DURATION_MAP = { "3": { num_frames: 81, frame_rate: 24 }, "5": { num_frames: 121, frame_rate: 24 }, "10": { num_frames: 241, frame_rate: 24 } };
   const RATIO_MAP = { "16:9": { width: 1152, height: 768 }, "9:16": { width: 768, height: 1152 }, "1:1": { width: 896, height: 896 } };
   const generateImage = async () => {
-    if (!prompt) {
+    if (!prompt2) {
       toast("\u8BF7\u8F93\u5165Prompt", "error");
       return;
     }
@@ -1506,9 +2232,10 @@ function MediaGen({ styles, project, characters, scenes }) {
     setImgUrl(null);
     try {
       const images = refImage ? [refImage] : void 0;
-      const r = await api.genImage(prompt, negPrompt, size, project?.style, images);
+      const r = await api.genImage(prompt2, negPrompt, size, project?.style, images);
       if (r.ok) {
         setImgUrl(r.url);
+        await recordCompletedAsset(project.id, "project", project.id, "image", r.url, { prompt: prompt2, negPrompt, size, hasRef: !!refImage });
         toast(refImage ? "\u56FE\u751F\u56FE\u5B8C\u6210" : "\u6587\u751F\u56FE\u5B8C\u6210", "ok");
       } else {
         setErr(r.error);
@@ -1521,10 +2248,11 @@ function MediaGen({ styles, project, characters, scenes }) {
     setGen(false);
   };
   const generateVideo = async () => {
-    if (!prompt) {
+    if (!prompt2) {
       toast("\u8BF7\u8F93\u5165Prompt", "error");
       return;
     }
+    const targetId = project?.id;
     setGen(true);
     setErr("");
     setVidTask(null);
@@ -1533,7 +2261,7 @@ function MediaGen({ styles, project, characters, scenes }) {
       const dur = DURATION_MAP[vidDuration];
       const ratio = RATIO_MAP[vidRatio];
       const params = {
-        prompt,
+        prompt: prompt2,
         visualStyle: project?.style,
         negativePrompt: negPrompt || void 0,
         height: ratio.height,
@@ -1544,9 +2272,10 @@ function MediaGen({ styles, project, characters, scenes }) {
       };
       const r = await api.genVideo(params);
       if (r.ok && r.video_id) {
+        const job = await createServerJob(targetId, { type: "video", entityType: "project", entityId: targetId, providerTaskId: r.video_id, status: r.status || "processing", params });
         setVidTask({ video_id: r.video_id, status: r.status, progress: r.progress || 0, url: null });
         toast("\u89C6\u9891\u4EFB\u52A1\u5DF2\u521B\u5EFA\uFF0C\u6B63\u5728\u751F\u6210...", "info");
-        pollVideo(r.video_id);
+        pollVideo(r.video_id, targetId, job);
       } else {
         setErr(r.error || "\u521B\u5EFA\u4EFB\u52A1\u5931\u8D25");
         setVidPolling(false);
@@ -1557,7 +2286,7 @@ function MediaGen({ styles, project, characters, scenes }) {
     }
     setGen(false);
   };
-  const pollVideo = async (videoId) => {
+  const pollVideo = async (videoId, targetId, job) => {
     let attempts = 0;
     let delay = 1e4;
     const poll = async () => {
@@ -1580,14 +2309,20 @@ function MediaGen({ styles, project, characters, scenes }) {
         }
         setVidTask({ video_id: videoId, status: r.status, progress: r.progress || 0, url: r.url || null, seconds: r.seconds, size: r.size });
         if (r.status === "completed") {
+          await updateServerJob(targetId, job.id, { status: "completed", asset: { kind: "video", url: r.url, prompt: prompt2, negPrompt, duration: vidDuration, ratio: vidRatio, hasRef: !!refImage, seconds: r.seconds, size: r.size } });
           setVidPolling(false);
           toast("\u89C6\u9891\u751F\u6210\u5B8C\u6210", "ok");
           return;
         }
         if (r.status === "failed") {
+          await updateServerJob(targetId, job.id, { status: "failed", error: r.error || "\u89C6\u9891\u751F\u6210\u5931\u8D25" });
           setErr("\u89C6\u9891\u751F\u6210\u5931\u8D25");
           setVidPolling(false);
           return;
+        }
+        if (r.status && r.status !== job.status) {
+          await updateServerJob(targetId, job.id, { status: r.status, progress: r.progress });
+          job.status = r.status;
         }
         if (attempts < 60) {
           pollRef.current = setTimeout(poll, delay);
@@ -1602,9 +2337,6 @@ function MediaGen({ styles, project, characters, scenes }) {
     };
     poll();
   };
-  useE(() => () => {
-    if (pollRef.current) clearTimeout(pollRef.current);
-  }, []);
   const useCharPrompt = (p, label) => {
     setPrompt(p || "");
     toast("\u5DF2\u586B\u5165" + label, "ok");
@@ -1612,6 +2344,16 @@ function MediaGen({ styles, project, characters, scenes }) {
   const onUploadRef = (e) => {
     const f = e.target.files[0];
     if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      toast("\u4EC5\u652F\u6301\u56FE\u7247\u6587\u4EF6", "error");
+      e.target.value = "";
+      return;
+    }
+    if (f.size > 8 * 1024 * 1024) {
+      toast("\u53C2\u8003\u56FE\u9700\u5C0F\u4E8E8MB", "error");
+      e.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setRefImage(reader.result);
     reader.readAsDataURL(f);
@@ -1625,7 +2367,7 @@ function MediaGen({ styles, project, characters, scenes }) {
     /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 12 }, children: [
       /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
         /* @__PURE__ */ jsx("label", { children: "Prompt\uFF08\u5DF2\u81EA\u52A8\u8FFD\u52A0\u5F53\u524D\u89C6\u89C9\u98CE\u683C\uFF09" }),
-        /* @__PURE__ */ jsx("textarea", { value: prompt, onChange: (e) => setPrompt(e.target.value), placeholder: "\u63CF\u8FF0\u8981\u751F\u6210\u7684\u753B\u9762...", style: { minHeight: 80 } })
+        /* @__PURE__ */ jsx("textarea", { value: prompt2, onChange: (e) => setPrompt(e.target.value), placeholder: "\u63CF\u8FF0\u8981\u751F\u6210\u7684\u753B\u9762...", style: { minHeight: 80 } })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "form-row", children: [
         /* @__PURE__ */ jsxs("div", { className: "ai-field", children: [
@@ -1709,11 +2451,235 @@ function MediaGen({ styles, project, characters, scenes }) {
           useCharPrompt(s.promptEn, "\u5206\u955C" + s.shotNo);
         }, disabled: !s.promptEn, children: "\u586B\u5165\u89C6\u9891EN" })
       ] }, "v" + i))
+    ] }),
+    mediaHistory.length > 0 && /* @__PURE__ */ jsxs("div", { className: "card", style: { marginTop: 12 }, children: [
+      /* @__PURE__ */ jsxs("div", { className: "card-title", style: { display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none" }, onClick: () => setHistOpen(!histOpen), children: [
+        /* @__PURE__ */ jsxs("span", { children: [
+          "\u{1F5C2}\uFE0F \u751F\u6210\u5386\u53F2\uFF08",
+          mediaHistory.length,
+          "\uFF09"
+        ] }),
+        /* @__PURE__ */ jsx("span", { style: { fontSize: 12, color: "var(--ai-text-muted)" }, children: histOpen ? "\u6536\u8D77 \u25B4" : "\u5C55\u5F00 \u25BE" })
+      ] }),
+      histOpen && /* @__PURE__ */ jsx("div", { className: "media-gallery", children: [...mediaHistory].reverse().map((m) => /* @__PURE__ */ jsxs("div", { className: "media-item", children: [
+        /* @__PURE__ */ jsx("div", { className: "media-thumb", children: m.type === "image" ? /* @__PURE__ */ jsx("img", { src: m.url, alt: m.prompt, loading: "lazy" }) : /* @__PURE__ */ jsx("video", { src: m.url, controls: true, preload: "metadata" }) }),
+        /* @__PURE__ */ jsxs("div", { className: "media-meta", children: [
+          /* @__PURE__ */ jsxs("span", { className: "media-tag", children: [
+            m.type === "image" ? "\u{1F5BC}\uFE0F" : "\u{1F3AC}",
+            m.hasRef ? "(\u53C2\u8003\u56FE)" : ""
+          ] }),
+          m.size && m.type === "image" && /* @__PURE__ */ jsx("span", { className: "media-size", children: m.size }),
+          m.duration && /* @__PURE__ */ jsxs("span", { className: "media-size", children: [
+            m.duration,
+            "s"
+          ] }),
+          m.seconds && /* @__PURE__ */ jsxs("span", { className: "media-size", children: [
+            m.seconds,
+            "s"
+          ] }),
+          /* @__PURE__ */ jsx("span", { className: "media-time", children: m.createdAt ? new Date(m.createdAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "" })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "media-prompt", title: m.prompt, children: [
+          (m.prompt || "").slice(0, 60),
+          (m.prompt || "").length > 60 ? "..." : ""
+        ] }),
+        /* @__PURE__ */ jsxs("div", { className: "media-actions", children: [
+          /* @__PURE__ */ jsx("a", { href: m.url, download: true, target: "_blank", rel: "noreferrer", children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u4E0B\u8F7D" }) }),
+          /* @__PURE__ */ jsx(Button, { size: "small", danger: true, onClick: () => delMedia(m.id), children: "\u5220" })
+        ] })
+      ] }, m.id)) })
     ] })
   ] });
 }
-function ConsistencyView({ project }) {
-  const [report, setReport] = useS("");
+function MangaView({ manga, project, onUpdate, projectRef, recordCompletedAsset }) {
+  const [generatingKey, setGeneratingKey] = useS(null);
+  if (!manga || !manga.pages || !manga.pages.length) return /* @__PURE__ */ jsx(Empty, { tip: "\u751F\u6210\u6F2B\u753B\u811A\u672C\u540E\u5C06\u663E\u793A\u5206\u683C\u753B\u9762\uFF0C\u6BCF\u683C\u53EF\u4E00\u952E\u751F\u6210\u6F2B\u753B\u56FE" });
+  const pages = manga.pages;
+  const panelImages = manga.panelImages || {};
+  const genPanelImage = async (pageIdx, panelIdx, panel) => {
+    const key = panel.id;
+    const targetProjectId = project.id;
+    if (!panel.imagePromptEn) {
+      toast("\u8BE5\u683C\u7F3A\u5C11\u82F1\u6587Prompt", "error");
+      return;
+    }
+    setGeneratingKey(key);
+    try {
+      const r = await api.genImage(panel.imagePromptEn, "", "1024x1024", project?.style);
+      if (r.ok) {
+        await recordCompletedAsset(targetProjectId, "panel", panel.id, "image", r.url, { prompt: panel.imagePromptEn });
+        toast("\u6F2B\u753B\u683C\u751F\u6210\u5B8C\u6210", "ok");
+      } else {
+        toast(r.error || "\u751F\u6210\u5931\u8D25", "error");
+      }
+    } catch (e) {
+      toast(e.message, "error");
+    }
+    setGeneratingKey(null);
+  };
+  const genAll = async () => {
+    for (let pi = 0; pi < pages.length; pi++) {
+      for (let gi = 0; gi < pages[pi].panels.length; gi++) {
+        const key = pages[pi].panels[gi].id;
+        const currentImages = projectRef?.current?.results?.manga?.panelImages || panelImages;
+        if (currentImages[key]) continue;
+        await genPanelImage(pi, gi, pages[pi].panels[gi]);
+      }
+    }
+  };
+  const pendingCount = pages.reduce((sum, pg) => sum + pg.panels.filter((panel) => !panel.imageUrl && !panelImages[panel.id]).length, 0);
+  return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 12, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("div", { style: { fontWeight: 700, fontSize: 15 }, children: manga.title || "\u672A\u547D\u540D\u6F2B\u753B" }),
+        /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, color: "var(--ai-text-muted)" }, children: [
+          manga.styleType,
+          " \xB7 ",
+          manga.totalPages,
+          "\u9875 \xB7 ",
+          manga.readingDirection,
+          " \xB7 ",
+          manga.platform
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx(Button, { type: "primary", loading: !!generatingKey, onClick: genAll, disabled: pendingCount === 0, children: generatingKey ? "\u751F\u6210\u4E2D..." : `\u4E00\u952E\u751F\u6210\u5168\u90E8\u6F2B\u753B\u56FE${pendingCount > 0 ? `(${pendingCount}\u683C\u5F85\u751F\u6210)` : ""}` })
+    ] }),
+    manga.synopsis && /* @__PURE__ */ jsx("div", { className: "md-body", style: { marginBottom: 12, fontSize: 13, color: "var(--ai-text-muted)" }, children: manga.synopsis }),
+    pages.map((page, pi) => /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 16 }, children: [
+      /* @__PURE__ */ jsxs("div", { className: "manga-page-head", children: [
+        /* @__PURE__ */ jsxs("span", { className: "manga-page-num", children: [
+          "\u7B2C",
+          page.pageNum || pi + 1,
+          "\u9875"
+        ] }),
+        /* @__PURE__ */ jsx("span", { className: "manga-pace", children: page.narrativePace }),
+        page.pageHook && /* @__PURE__ */ jsxs("span", { className: "manga-hook", title: page.pageHook, children: [
+          "\u7FFB\u9875\u94A9\u5B50: ",
+          page.pageHook
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "manga-panels", children: page.panels.map((panel, gi) => {
+        const key = panel.id;
+        const imgUrl = panel.imageUrl || panelImages[key] || panelImages[`${pi}-${gi}`];
+        const isGenerating = generatingKey === key;
+        return /* @__PURE__ */ jsxs("div", { className: `manga-panel ${panel.sizeHint?.includes("\u5927") ? "large" : panel.sizeHint?.includes("\u5C0F") ? "small" : ""}`, children: [
+          /* @__PURE__ */ jsxs("div", { className: "manga-panel-head", children: [
+            /* @__PURE__ */ jsxs("span", { className: "manga-panel-num", children: [
+              "\u683C",
+              panel.panelNum || gi + 1
+            ] }),
+            /* @__PURE__ */ jsx("span", { className: "manga-layout", children: panel.layout }),
+            panel.sizeHint && /* @__PURE__ */ jsx("span", { className: "manga-size-hint", children: panel.sizeHint })
+          ] }),
+          (imgUrl || isGenerating) && /* @__PURE__ */ jsxs("div", { className: "manga-panel-image", children: [
+            isGenerating && /* @__PURE__ */ jsx("div", { className: "manga-gen-loading", children: "\u751F\u6210\u4E2D..." }),
+            imgUrl && /* @__PURE__ */ jsx("img", { src: imgUrl, alt: `\u683C${gi + 1}`, loading: "lazy" })
+          ] }),
+          /* @__PURE__ */ jsx("div", { className: "manga-panel-desc", children: panel.sceneDesc }),
+          panel.characterExpressions && /* @__PURE__ */ jsxs("div", { className: "manga-panel-meta", children: [
+            /* @__PURE__ */ jsx("b", { children: "\u8868\u60C5:" }),
+            " ",
+            panel.characterExpressions
+          ] }),
+          panel.dialogue?.length > 0 && /* @__PURE__ */ jsx("div", { className: "manga-dialogues", children: panel.dialogue.map((d, di) => /* @__PURE__ */ jsxs("div", { className: "manga-dialogue", children: [
+            /* @__PURE__ */ jsx("span", { className: "dl-pos", children: d.position }),
+            /* @__PURE__ */ jsxs("span", { className: "dl-speaker", children: [
+              d.speaker,
+              ":"
+            ] }),
+            " ",
+            /* @__PURE__ */ jsxs("span", { className: "dl-text", children: [
+              "\u300C",
+              d.text,
+              "\u300D"
+            ] })
+          ] }, di)) }),
+          panel.narration?.text && /* @__PURE__ */ jsxs("div", { className: "manga-narration", children: [
+            /* @__PURE__ */ jsx("span", { className: "dl-pos", children: panel.narration.position }),
+            " ",
+            panel.narration.text
+          ] }),
+          panel.soundEffect?.text && /* @__PURE__ */ jsx("div", { className: "manga-sfx", "data-style": panel.soundEffect.style, children: panel.soundEffect.text }),
+          panel.emotionSymbols?.length > 0 && /* @__PURE__ */ jsx("div", { className: "manga-emotions", children: panel.emotionSymbols.join(" ") }),
+          panel.transitionToNext && /* @__PURE__ */ jsxs("div", { className: "manga-transition", children: [
+            "\u2192 ",
+            panel.transitionToNext
+          ] }),
+          panel.imagePromptEn && /* @__PURE__ */ jsx("div", { className: "manga-panel-prompt", children: /* @__PURE__ */ jsxs("details", { children: [
+            /* @__PURE__ */ jsx("summary", { children: "\u82F1\u6587Prompt" }),
+            /* @__PURE__ */ jsx("div", { className: "prompt-text", children: panel.imagePromptEn })
+          ] }) }),
+          /* @__PURE__ */ jsxs("div", { className: "manga-panel-actions", children: [
+            /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", loading: isGenerating, onClick: () => genPanelImage(pi, gi, panel), disabled: !panel.imagePromptEn, children: imgUrl ? "\u91CD\u65B0\u751F\u56FE" : "\u751F\u56FE" }),
+            imgUrl && /* @__PURE__ */ jsx("a", { href: imgUrl, download: true, target: "_blank", rel: "noreferrer", children: /* @__PURE__ */ jsx(Button, { size: "small", children: "\u4E0B\u8F7D" }) })
+          ] })
+        ] }, panel.id);
+      }) })
+    ] }, page.id))
+  ] });
+}
+function SnapshotView({ project, flushProject }) {
+  const [snapshots, setSnapshots] = useS([]);
+  const [loading, setLoading] = useS(false);
+  const [label, setLabel] = useS("");
+  const refresh = async () => {
+    if (!project?.id) return;
+    try {
+      setSnapshots(await api.getSnapshots(project.id));
+    } catch {
+    }
+  };
+  useE(() => {
+    refresh();
+  }, [project?.id]);
+  const create = async () => {
+    if (!project?.id) return;
+    setLoading(true);
+    try {
+      await flushProject(project.id);
+      await api.snapshot(project.id, label.trim() || `\u5FEB\u7167 ${snapshots.length + 1}`);
+      setLabel("");
+      toast("\u5FEB\u7167\u5DF2\u521B\u5EFA", "ok");
+      refresh();
+    } catch (e) {
+      toast("\u521B\u5EFA\u5931\u8D25: " + e.message, "error");
+    }
+    setLoading(false);
+  };
+  const restore = async (snId) => {
+    if (!confirm("\u6062\u590D\u5FEB\u7167\u5C06\u8986\u76D6\u5F53\u524D\u5185\u5BB9\uFF08\u4F1A\u81EA\u52A8\u4FDD\u5B58\u5F53\u524D\u72B6\u6001\u4E3A\u5FEB\u7167\uFF09")) return;
+    try {
+      await flushProject(project.id);
+      await api.restoreSnapshot(project.id, snId);
+      toast("\u5FEB\u7167\u5DF2\u6062\u590D", "ok");
+      window.location.reload();
+    } catch (e) {
+      toast("\u6062\u590D\u5931\u8D25: " + e.message, "error");
+    }
+  };
+  if (!snapshots.length) return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 12, display: "flex", gap: 8, alignItems: "center" }, children: [
+      /* @__PURE__ */ jsx(Input, { value: label, onChange: (e) => setLabel(e.target.value), placeholder: "\u5FEB\u7167\u540D\u79F0\uFF08\u53EF\u9009\uFF09", style: { flex: 1 } }),
+      /* @__PURE__ */ jsx(Button, { type: "primary", loading, onClick: create, children: "\u{1F4F8} \u521B\u5EFA\u5FEB\u7167" })
+    ] }),
+    /* @__PURE__ */ jsx(Empty, { tip: "\u521B\u5EFA\u5FEB\u7167\u53EF\u4FDD\u5B58\u5F53\u524D\u9879\u76EE\u72B6\u6001\uFF0C\u968F\u65F6\u53EF\u6062\u590D\uFF08\u6700\u591A20\u4E2A\uFF09" })
+  ] });
+  return /* @__PURE__ */ jsxs("div", { children: [
+    /* @__PURE__ */ jsxs("div", { className: "card", style: { marginBottom: 12, display: "flex", gap: 8, alignItems: "center" }, children: [
+      /* @__PURE__ */ jsx(Input, { value: label, onChange: (e) => setLabel(e.target.value), placeholder: "\u5FEB\u7167\u540D\u79F0\uFF08\u53EF\u9009\uFF09", style: { flex: 1 } }),
+      /* @__PURE__ */ jsx(Button, { type: "primary", loading, onClick: create, children: "\u{1F4F8} \u521B\u5EFA\u5FEB\u7167" })
+    ] }),
+    /* @__PURE__ */ jsx("div", { className: "grid-cards", children: snapshots.slice().reverse().map((s) => /* @__PURE__ */ jsxs("div", { className: "item-card", children: [
+      /* @__PURE__ */ jsxs("div", { className: "item-head", children: [
+        /* @__PURE__ */ jsx("input", { className: "item-name", value: s.label, readOnly: true }),
+        /* @__PURE__ */ jsx(Button, { size: "small", type: "primary", onClick: () => restore(s.id), children: "\u6062\u590D" })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "field", style: { fontSize: 11, color: "var(--ai-text-muted)" }, children: new Date(s.timestamp).toLocaleString("zh-CN") })
+    ] }, s.id)) })
+  ] });
+}
+function ConsistencyView({ project, onUpdate }) {
+  const consistency = project.results?.consistency || { issues: [], summary: "", blockingCount: 0 };
   const [running, setRunning] = useS(false);
   const run = async () => {
     if (!project.results || Object.keys(project.results).length === 0) {
@@ -1721,11 +2687,10 @@ function ConsistencyView({ project }) {
       return;
     }
     setRunning(true);
-    setReport("");
     try {
-      await api.checkConsistency(project.results, project.knowledge, (d) => {
-        if (d.content) setReport((p) => p + d.content);
-        if (d.error) setReport((p) => p + "\n\u9519\u8BEF: " + d.error);
+      await api.checkConsistency(project.id, project.results, project.knowledge, (d) => {
+        if (d.status === "done" && d.result) onUpdate((prev) => ({ results: { ...prev.results, consistency: d.result } }));
+        if (d.error) toast(d.error, "error");
       });
       toast("\u68C0\u67E5\u5B8C\u6210", "ok");
     } catch (e) {
@@ -1733,9 +2698,42 @@ function ConsistencyView({ project }) {
     }
     setRunning(false);
   };
-  return /* @__PURE__ */ jsxs("div", { children: [
-    /* @__PURE__ */ jsx(Button, { type: "primary", loading: running, onClick: run, style: { marginBottom: 12 }, children: "\u{1F50D} \u68C0\u67E5\u4E00\u81F4\u6027" }),
-    report ? /* @__PURE__ */ jsx("div", { className: "md-body", dangerouslySetInnerHTML: { __html: renderMd(report) } }) : /* @__PURE__ */ jsx(Empty, { tip: "\u70B9\u51FB\u4E0A\u65B9\u6309\u94AE\u68C0\u67E5\u5404\u6A21\u5757\u95F4\u89D2\u8272/\u573A\u666F/\u65F6\u95F4\u7EBF\u4E00\u81F4\u6027" })
+  const updateStatus = (issueId, status) => onUpdate((prev) => {
+    const current = prev.results?.consistency || consistency;
+    const issues = (current.issues || []).map((issue) => issue.id === issueId ? { ...issue, status } : issue);
+    const blockingCount = issues.filter((issue) => issue.severity === "error" && issue.status === "open").length;
+    return { results: { ...prev.results, consistency: { ...current, issues, blockingCount } } };
+  });
+  return /* @__PURE__ */ jsxs("div", { className: "consistency-view", children: [
+    /* @__PURE__ */ jsxs("div", { className: "consistency-toolbar", children: [
+      /* @__PURE__ */ jsx(Button, { type: "primary", loading: running, onClick: run, children: "\u{1F50D} \u68C0\u67E5\u4E00\u81F4\u6027" }),
+      /* @__PURE__ */ jsxs("span", { className: `blocking-count ${consistency.blockingCount ? "active" : ""}`, children: [
+        "\u963B\u65AD ",
+        consistency.blockingCount || 0
+      ] }),
+      /* @__PURE__ */ jsxs("span", { children: [
+        "\u95EE\u9898 ",
+        (consistency.issues || []).length
+      ] })
+    ] }),
+    consistency.summary && /* @__PURE__ */ jsx("div", { className: "md-body consistency-summary", dangerouslySetInnerHTML: { __html: renderMd(consistency.summary) } }),
+    (consistency.issues || []).length ? /* @__PURE__ */ jsx("div", { className: "consistency-issues", children: consistency.issues.map((issue) => /* @__PURE__ */ jsxs("div", { className: `consistency-issue severity-${issue.severity} status-${issue.status}`, children: [
+      /* @__PURE__ */ jsxs("div", { className: "issue-head", children: [
+        /* @__PURE__ */ jsx(Tag, { children: issue.severity }),
+        /* @__PURE__ */ jsx("b", { children: issue.rule || issue.category }),
+        /* @__PURE__ */ jsxs("span", { children: [
+          issue.entityType,
+          issue.entityId ? ` \xB7 ${issue.entityId}` : "",
+          issue.shotId ? ` \xB7 shot ${issue.shotId}` : ""
+        ] })
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "issue-message", children: issue.message }),
+      issue.suggestion && /* @__PURE__ */ jsxs("div", { className: "issue-suggestion", children: [
+        "\u5EFA\u8BAE\uFF1A",
+        issue.suggestion
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "issue-actions", children: ["open", "resolved", "accepted"].map((status) => /* @__PURE__ */ jsx("button", { className: issue.status === status ? "active" : "", onClick: () => updateStatus(issue.id, status), children: status }, status)) })
+    ] }, issue.id)) }) : !consistency.summary && /* @__PURE__ */ jsx(Empty, { tip: "\u70B9\u51FB\u4E0A\u65B9\u6309\u94AE\u68C0\u67E5\u5404\u6A21\u5757\u95F4\u89D2\u8272\u3001\u573A\u666F\u548C\u65F6\u95F4\u7EBF\u4E00\u81F4\u6027" })
   ] });
 }
 function Empty({ tip }) {
@@ -1757,9 +2755,26 @@ function App() {
   const [mobileTab, setMobileTab] = useS("input");
   const [sidebarOpen, setSidebarOpen] = useS(false);
   const [cfg, setCfg] = useS(null);
+  const [darkMode, setDarkMode] = useS(() => {
+    try {
+      return localStorage.getItem("theme") === "dark";
+    } catch {
+      return false;
+    }
+  });
+  useE(() => {
+    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
+    try {
+      localStorage.setItem("theme", darkMode ? "dark" : "light");
+    } catch {
+    }
+  }, [darkMode]);
   const [analysisSource, setAnalysisSource] = useS({ mode: "chapters", chId: "" });
   const [streaming, setStreaming] = useS("");
   const [streamingType, setStreamingType] = useS("");
+  const [batchGenerating, setBatchGenerating] = useS(false);
+  const [loadingProject, setLoadingProject] = useS(false);
+  const [saveStatus, setSaveStatus] = useS("saved");
   const refreshProjects = useCB(async () => {
     try {
       const r = await api.listProjects();
@@ -1777,32 +2792,221 @@ function App() {
   useE(() => {
     window.__analyzeAll = (mods) => window.__analyzeAllImpl?.(mods);
   });
-  const loadProject = async (id) => {
-    if (!id) {
-      setProject(null);
+  const projectRef = useR(null);
+  const saveTimers = useR({});
+  const pendingProjects = useR({});
+  const savingProjects = useR({});
+  const loadToken = useR(0);
+  useE(() => {
+    projectRef.current = project;
+  }, [project]);
+  const flushProject = useCB(async (id) => {
+    clearTimeout(saveTimers.current[id]);
+    delete saveTimers.current[id];
+    if (savingProjects.current[id]) {
+      await savingProjects.current[id];
+      if (pendingProjects.current[id]) return flushProject(id);
       return;
     }
-    try {
-      setProject(await api.getProject(id));
-      setCurrentId(id);
-    } catch (e) {
-      toast(e.message, "error");
-    }
-  };
-  const updateProject = useCB(async (patch) => {
-    if (!project) return;
-    const updated = { ...project, ...patch };
-    setProject(updated);
-    clearTimeout(window.__saveTimer);
-    window.__saveTimer = setTimeout(async () => {
+    const pending = pendingProjects.current[id];
+    if (!pending) return;
+    delete pendingProjects.current[id];
+    setSaveStatus("saving");
+    const save = async (payload, retried = false) => {
       try {
-        await api.updateProject(project.id, patch);
-        refreshProjects();
-      } catch (e) {
-        console.warn("save", e);
+        return await api.updateProject(id, payload, payload.revision || 0);
+      } catch (error) {
+        const serverProject = error.status === 409 && error.data?.project;
+        if (!retried && serverProject) {
+          const merged = normalizeProject(mergeProjectState(serverProject, payload));
+          merged.revision = serverProject.revision;
+          pendingProjects.current[id] = merged;
+          const saved = await save(merged, true);
+          if (pendingProjects.current[id] === merged) delete pendingProjects.current[id];
+          return saved;
+        }
+        throw error;
       }
+    };
+    const promise = save(pending).then((saved) => {
+      const revision = saved.revision ?? pending.revision;
+      if (pendingProjects.current[id]) pendingProjects.current[id] = { ...pendingProjects.current[id], revision };
+      if (projectRef.current?.id === id) {
+        const next = pendingProjects.current[id] ? { ...projectRef.current, revision } : normalizeProject({ ...projectRef.current, ...saved, revision });
+        projectRef.current = next;
+        setProject(next);
+        setSaveStatus(pendingProjects.current[id] ? "saving" : "saved");
+      }
+      refreshProjects();
+    }).catch((error) => {
+      pendingProjects.current[id] = pendingProjects.current[id] || pending;
+      setSaveStatus(error.status === 409 ? "conflict" : "failed");
+      throw error;
+    }).finally(() => {
+      delete savingProjects.current[id];
+    });
+    savingProjects.current[id] = promise;
+    await promise;
+    if (pendingProjects.current[id]) return flushProject(id);
+  }, [refreshProjects]);
+  const loadProject = async (id) => {
+    const token = ++loadToken.current;
+    const previousId = projectRef.current?.id;
+    if (previousId) {
+      try {
+        await flushProject(previousId);
+      } catch {
+      }
+    }
+    if (!id || token !== loadToken.current) {
+      if (!id) {
+        setProject(null);
+        setCurrentId(null);
+      }
+      return;
+    }
+    setLoadingProject(true);
+    try {
+      const loaded = normalizeProject(await api.getProject(id));
+      if (token !== loadToken.current) return;
+      projectRef.current = loaded;
+      setProject(loaded);
+      setCurrentId(id);
+      setSaveStatus("saved");
+      setAnalysisSource({ mode: "chapters", chId: "" });
+    } catch (e) {
+      if (token === loadToken.current) toast(e.message, "error");
+    }
+    if (token === loadToken.current) setLoadingProject(false);
+  };
+  const updateProject = useCB((patchOrFn) => {
+    const current = projectRef.current;
+    if (!current) return;
+    const patch = typeof patchOrFn === "function" ? patchOrFn(current) : patchOrFn;
+    let updated = { ...current, ...patch };
+    const upstreamChanged = ["content", "style", "chapters"].some((key) => patch[key] !== void 0 && patch[key] !== current[key]);
+    if (upstreamChanged) updated = { ...updated, ...staleUpstream(updated) };
+    updated = normalizeProject(updated);
+    projectRef.current = updated;
+    setProject(updated);
+    pendingProjects.current[current.id] = updated;
+    setSaveStatus("saving");
+    clearTimeout(saveTimers.current[current.id]);
+    saveTimers.current[current.id] = setTimeout(() => {
+      flushProject(current.id).catch(() => {
+      });
     }, 600);
-  }, [project]);
+  }, [flushProject]);
+  const updateTargetProject = useCB(async (targetProjectId, patchOrFn, flushNow = false) => {
+    if (projectRef.current?.id === targetProjectId) {
+      updateProject(patchOrFn);
+      if (flushNow) await flushProject(targetProjectId);
+      return;
+    }
+    const base = pendingProjects.current[targetProjectId] || normalizeProject(await api.getProject(targetProjectId));
+    const patch = typeof patchOrFn === "function" ? patchOrFn(base) : patchOrFn;
+    pendingProjects.current[targetProjectId] = normalizeProject({ ...base, ...patch });
+    clearTimeout(saveTimers.current[targetProjectId]);
+    if (flushNow) await flushProject(targetProjectId);
+    else saveTimers.current[targetProjectId] = setTimeout(() => {
+      flushProject(targetProjectId).catch(() => {
+      });
+    }, 600);
+  }, [flushProject, updateProject]);
+  const syncServerProject = useCB((serverProject) => {
+    if (!serverProject) return;
+    let normalized = normalizeProject(serverProject);
+    const pending = pendingProjects.current[normalized.id];
+    if (pending) {
+      normalized = normalizeProject(mergeProjectState(normalized, pending));
+      normalized.revision = serverProject.revision;
+      pendingProjects.current[normalized.id] = normalized;
+    }
+    if (projectRef.current?.id === normalized.id) {
+      projectRef.current = normalized;
+      setProject(normalized);
+      setSaveStatus(pending ? "saving" : "saved");
+    }
+  }, []);
+  const createServerJob = useCB(async (projectId, job) => {
+    await flushProject(projectId);
+    const create = async (retried = false) => {
+      const current = projectRef.current?.id === projectId ? projectRef.current : normalizeProject(await api.getProject(projectId));
+      try {
+        const response = await api.createJob(projectId, job, current.revision);
+        syncServerProject(response.project);
+        return response.job;
+      } catch (error) {
+        if (!retried && error.status === 409) {
+          const latest = normalizeProject(error.data?.project || await api.getProject(projectId));
+          syncServerProject(latest);
+          return create(true);
+        }
+        throw error;
+      }
+    };
+    return create();
+  }, [flushProject, syncServerProject]);
+  const updateServerJob = useCB(async (projectId, jobId, patch) => {
+    await flushProject(projectId);
+    const update = async (retried = false) => {
+      const current = projectRef.current?.id === projectId ? projectRef.current : normalizeProject(await api.getProject(projectId));
+      try {
+        const response = await api.updateJob(projectId, jobId, patch, current.revision);
+        syncServerProject(response.project);
+        return response;
+      } catch (error) {
+        if (!retried && error.status === 409) {
+          syncServerProject(error.data?.project || await api.getProject(projectId));
+          return update(true);
+        }
+        throw error;
+      }
+    };
+    return update();
+  }, [flushProject, syncServerProject]);
+  const recordCompletedAsset = useCB(async (projectId, entityType, entityId, kind, url, metadata = {}) => {
+    const job = await createServerJob(projectId, { type: kind, kind, entityType, entityId, status: "processing", params: metadata });
+    return updateServerJob(projectId, job.id, { status: "completed", asset: { kind, url, ...metadata } });
+  }, [createServerJob, updateServerJob]);
+  useE(() => () => {
+    Object.values(saveTimers.current).forEach(clearTimeout);
+  }, []);
+  useE(() => {
+    if (!project?.id) return;
+    const pendingJobs = (project.jobs || []).filter((job) => job.type === "video" && ["pending", "processing", "in_progress", "running", "queued"].includes(job.status));
+    let cancelled = false;
+    const timers = [];
+    pendingJobs.forEach((job) => {
+      const poll = async () => {
+        if (cancelled) return;
+        try {
+          const result = await api.getVideo(job.providerTaskId);
+          if (cancelled) return;
+          if (result.status === "completed") {
+            await updateServerJob(project.id, job.id, { status: "completed", asset: { kind: "video", url: result.url, jobId: job.id } });
+            return;
+          }
+          if (result.status === "failed") {
+            await updateServerJob(project.id, job.id, { status: "failed", error: result.error || "\u89C6\u9891\u751F\u6210\u5931\u8D25" });
+            return;
+          }
+          if (result.status && result.status !== job.status) {
+            await updateServerJob(project.id, job.id, { status: result.status, progress: result.progress });
+            job.status = result.status;
+          }
+          timers.push(setTimeout(poll, 1e4));
+        } catch {
+          timers.push(setTimeout(poll, 15e3));
+        }
+      };
+      poll();
+    });
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [project?.id, updateServerJob]);
   const createProject = async (name, style) => {
     const p = await api.createProject(name, style);
     await refreshProjects();
@@ -1812,11 +3016,26 @@ function App() {
   };
   const deleteProject = async (id) => {
     if (!confirm("\u786E\u8BA4\u5220\u9664\u8BE5\u9879\u76EE\uFF1F")) return;
+    clearTimeout(saveTimers.current[id]);
+    delete pendingProjects.current[id];
     await api.deleteProject(id);
     await refreshProjects();
     if (currentId === id) {
       setCurrentId(null);
       setProject(null);
+      projectRef.current = null;
+    }
+  };
+  const renameProject = async (id, name) => {
+    try {
+      if (currentId === id) await flushProject(id);
+      const current = currentId === id ? projectRef.current : normalizeProject(await api.getProject(id));
+      const saved = await api.updateProject(id, { name }, current.revision);
+      if (currentId === id) syncServerProject(saved);
+      await refreshProjects();
+      toast("\u5DF2\u91CD\u547D\u540D", "ok");
+    } catch (e) {
+      toast(e.message, "error");
     }
   };
   const importProject = async (data) => {
@@ -1871,11 +3090,13 @@ ${c.content || ""}`).join("\n\n");
         ] })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "header-right", children: [
+        project && /* @__PURE__ */ jsx("span", { className: `save-state ${saveStatus}`, children: saveStatus === "saving" ? "\u4FDD\u5B58\u4E2D" : saveStatus === "saved" ? "\u5DF2\u4FDD\u5B58" : saveStatus === "conflict" ? "\u4FDD\u5B58\u51B2\u7A81" : "\u4FDD\u5B58\u5931\u8D25" }),
         /* @__PURE__ */ jsxs("div", { className: "model-info", onClick: () => setSettingsOpen(true), children: [
           /* @__PURE__ */ jsx("span", { className: `model-dot ${hasProvider ? "" : "off"}` }),
           /* @__PURE__ */ jsx("span", { className: "model-name-text", children: hasProvider ? cfg.providers.find((p) => p.id === cfg.activeProvider)?.name || "\u5DF2\u914D\u7F6E" : "\u672A\u914D\u7F6E\u6A21\u578B" }),
           /* @__PURE__ */ jsx("span", { className: "model-gear", children: "\u2699\uFE0F" })
         ] }),
+        /* @__PURE__ */ jsx(Button, { size: "small", onClick: () => setDarkMode((d) => !d), title: "\u5207\u6362\u6DF1\u8272\u6A21\u5F0F", children: darkMode ? "\u2600\uFE0F" : "\u{1F319}" }),
         /* @__PURE__ */ jsxs(Button, { size: "small", onClick: () => setSettingsOpen(true), children: [
           /* @__PURE__ */ jsx("span", { className: "settings-text", children: "\u8BBE\u7F6E" }),
           /* @__PURE__ */ jsx("span", { className: "settings-icon", children: "\u2699\uFE0F" })
@@ -1895,24 +3116,29 @@ ${c.content || ""}`).join("\n\n");
       }, onNew: () => {
         setNewOpen(true);
         setSidebarOpen(false);
-      }, onDelete: deleteProject, onImport: importProject, collapsed, onToggle: () => setCollapsed((c) => !c), mobileOpen: sidebarOpen, onCloseMobile: () => setSidebarOpen(false) }),
-      project ? /* @__PURE__ */ jsxs("div", { className: `main-area mobile-tab-${mobileTab}`, children: [
+      }, onDelete: deleteProject, onImport: importProject, onRename: renameProject, collapsed, onToggle: () => setCollapsed((c) => !c), mobileOpen: sidebarOpen, onCloseMobile: () => setSidebarOpen(false) }),
+      loadingProject ? /* @__PURE__ */ jsx("div", { className: "main-area", style: { alignItems: "center", justifyContent: "center", color: "var(--ai-text-muted)" }, children: /* @__PURE__ */ jsxs("div", { style: { textAlign: "center" }, children: [
+        /* @__PURE__ */ jsx("div", { style: { fontSize: 28, marginBottom: 8 }, children: "\u23F3" }),
+        /* @__PURE__ */ jsx("div", { children: "\u52A0\u8F7D\u9879\u76EE..." })
+      ] }) }) : project ? /* @__PURE__ */ jsxs("div", { className: `main-area mobile-tab-${mobileTab}`, children: [
         /* @__PURE__ */ jsx(
           InputPanel,
           {
             project,
             onUpdate: updateProject,
             styles,
-            generating: false,
+            generating: batchGenerating,
             hasChapters,
+            hasProvider,
             analysisSource,
             setAnalysisSource,
+            analysisContent,
             collapsed: inputCollapsed,
             onToggleCollapse: () => setInputCollapsed((c) => !c),
-            onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods)
+            onAnalyzeAll: (mods, resumeRunId) => window.__analyzeAllImpl?.(mods, resumeRunId)
           }
         ),
-        /* @__PURE__ */ jsx(ResultPanel, { project, onUpdate: updateProject, styles, onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods), analysisSource: analysisContent, streaming, streamingType, setStreaming, setStreamingType })
+        /* @__PURE__ */ jsx(ResultPanel, { project, onUpdate: updateProject, styles, onAnalyzeAll: (mods) => window.__analyzeAllImpl?.(mods), analysisSource: analysisContent, analysisScope: analysisSource, streaming, streamingType, setStreaming, setStreamingType, projectRef, hasProvider, flushProject, createServerJob, updateServerJob, recordCompletedAsset })
       ] }) : /* @__PURE__ */ jsx("div", { className: "main-area", style: { alignItems: "center", justifyContent: "center", color: "var(--ai-text-muted)" }, children: /* @__PURE__ */ jsxs("div", { style: { textAlign: "center" }, children: [
         /* @__PURE__ */ jsx("div", { style: { fontSize: 48, marginBottom: 12 }, children: "\u{1F3AC}" }),
         /* @__PURE__ */ jsx("div", { style: { fontSize: 18, fontWeight: 700, color: "var(--ai-text)", marginBottom: 8 }, children: "\u77ED\u5267\u811A\u672C\u5DE5\u574A" }),
@@ -1924,12 +3150,12 @@ ${c.content || ""}`).join("\n\n");
     ] }),
     /* @__PURE__ */ jsx(NewProjectModal, { open: newOpen, onClose: () => setNewOpen(false), onCreate: createProject }),
     /* @__PURE__ */ jsx(SettingsModal, { open: settingsOpen, onClose: () => setSettingsOpen(false), onSaved: () => api.getConfig().then(setCfg) }),
-    /* @__PURE__ */ jsx(ResultPanelAnalyzeBridge, { project, results: project?.results || {}, characters: project?.results?.characters?.characters || [], scenes: project?.results?.scenes?.scenes || [], onUpdate: updateProject, analysisContent, setStreaming, setStreamingType })
+    /* @__PURE__ */ jsx(ResultPanelAnalyzeBridge, { project, results: project?.results || {}, characters: project?.results?.characters?.characters || [], scenes: project?.results?.scenes?.scenes || [], onUpdate: updateProject, analysisContent, analysisScope: analysisSource, setStreaming, setStreamingType, setBatchGenerating, projectRef })
   ] });
 }
-function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate, analysisContent, setStreaming, setStreamingType }) {
+function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpdate, analysisContent, analysisScope, setStreaming, setStreamingType, setBatchGenerating, projectRef }) {
   useE(() => {
-    window.__analyzeAllImpl = async (modules) => {
+    window.__analyzeAllImpl = async (modules, resumeRunId) => {
       if (!project) return;
       const content = analysisContent || project.content || "";
       if (!content.trim()) {
@@ -1937,8 +3163,14 @@ function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpda
         return;
       }
       toast("\u5F00\u59CB\u6279\u91CF\u5206\u6790", "info");
+      setBatchGenerating(true);
+      const targetId = project.id;
+      let activeRunId = resumeRunId;
+      const resumedRun = (project.analysisRuns || []).find((run) => run.id === resumeRunId);
+      const moduleStates = { ...resumedRun?.modules || {} };
       try {
-        await api.analyzeAll({ content, visualStyle: project.style, projectId: project.id, modules }, (d) => {
+        await api.analyzeAll({ content, visualStyle: project.style, projectId: targetId, modules, characters, scenes, sourceMode: analysisScope?.mode, chapterId: analysisScope?.mode === "chapter" ? analysisScope.chId : void 0, resumeRunId }, (d) => {
+          if (d.status === "run_start") activeRunId = d.runId;
           if (d.status === "module_start") {
             toast(`\u751F\u6210 ${MODULES.find((m) => m.id === d.type)?.name}...`, "info");
             setStreaming("");
@@ -1948,15 +3180,42 @@ function ResultPanelAnalyzeBridge({ project, results, characters, scenes, onUpda
             setStreaming((prev) => prev + d.content);
           }
           if (d.status === "module_done") {
-            onUpdate({ results: { ...results, [d.type]: d.result } });
+            if (projectRef?.current?.id !== targetId) return;
+            onUpdate((prev) => prev.id === targetId ? (() => {
+              const prevResults = prev.results || {};
+              const prevType = prevResults[d.type];
+              let newResult = d.result;
+              if (prevType && typeof prevType === "object" && typeof newResult === "object" && !Array.isArray(newResult)) {
+                newResult = { ...d.result, derivedFromRevision: prev.sourceRevision || 1, stale: false };
+                if (prevType.panelImages && newResult.pages) newResult.panelImages = prevType.panelImages;
+              }
+              return normalizeProject({ ...prev, results: { ...prevResults, [d.type]: newResult } });
+            })() : prev);
             setStreaming("");
             setStreamingType("");
           }
-          if (d.status === "all_done") toast("\u6279\u91CF\u5206\u6790\u5B8C\u6210", "ok");
+          if (d.status === "module_done" || d.status === "module_skipped") moduleStates[d.type] = { status: "completed" };
+          if (d.status === "module_error") {
+            moduleStates[d.type] = { status: "failed", error: d.error };
+            setStreaming("");
+            setStreamingType("");
+            toast(`\u6A21\u5757 ${d.type} \u751F\u6210\u5931\u8D25: ${d.error}`, "error");
+          }
+          if (d.status === "all_done") {
+            onUpdate((prev) => ({ analysisRuns: [...(prev.analysisRuns || []).filter((run) => run.id !== activeRunId), { id: activeRunId, status: d.retryModules?.length ? "failed" : "completed", modules: moduleStates, updatedAt: (/* @__PURE__ */ new Date()).toISOString() }] }));
+            setBatchGenerating(false);
+            toast(d.retryModules?.length ? `\u6279\u91CF\u5206\u6790\u5B8C\u6210\uFF0C${d.retryModules.length} \u4E2A\u6A21\u5757\u53EF\u91CD\u8BD5` : "\u6279\u91CF\u5206\u6790\u5B8C\u6210", d.retryModules?.length ? "error" : "ok");
+          }
         });
       } catch (e) {
         toast("\u5206\u6790\u5931\u8D25: " + e.message, "error");
+        setStreaming("");
+        setStreamingType("");
       }
+      setBatchGenerating(false);
+    };
+    return () => {
+      delete window.__analyzeAllImpl;
     };
   });
   return null;

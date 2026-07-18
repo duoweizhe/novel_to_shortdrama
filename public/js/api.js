@@ -7,7 +7,13 @@ export async function http(url, opts = {}) {
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const error = new Error(data.error || `HTTP ${res.status}`);
+    error.status = res.status;
+    error.data = data;
+    error.response = { status: res.status, data };
+    throw error;
+  }
   return data;
 }
 
@@ -26,26 +32,36 @@ export async function sse(url, body, onData, signal) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  const processEvent = (block) => {
+    let event = 'message';
+    const dataLines = [];
+    for (const line of block.split('\n')) {
+      if (line.startsWith('event:')) event = line.slice(6).trim();
+      if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+    }
+    const raw = dataLines.join('\n').trim();
+    if (!raw || raw === '[DONE]') return;
+    let data;
+    try { data = JSON.parse(raw); } catch { data = { error: raw }; }
+    if (event === 'error') throw new Error(data.error || data.message || '流式请求失败');
+    onData(data);
+  };
   while (true) {
     const { done, value } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done }).replace(/\r\n/g, '\n');
+    const blocks = buffer.split('\n\n');
+    buffer = blocks.pop() || '';
+    for (const block of blocks) processEvent(block);
     if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const d = line.slice(6).trim();
-      if (d === '[DONE]') continue;
-      try { onData(JSON.parse(d)); } catch {}
-    }
   }
+  if (buffer.trim()) processEvent(buffer);
 }
 
 export const api = {
   listProjects: () => http('/api/projects'),
   createProject: (name, style) => http('/api/projects', { method: 'POST', body: { name, style } }),
   getProject: (id) => http('/api/projects/' + id),
-  updateProject: (id, patch) => http('/api/projects/' + id, { method: 'PUT', body: patch }),
+  updateProject: (id, patch, expectedRevision) => http('/api/projects/' + id, { method: 'PUT', body: { ...patch, ...(expectedRevision === undefined ? {} : { expectedRevision }) } }),
   deleteProject: (id) => http('/api/projects/' + id, { method: 'DELETE' }),
   importProject: (data) => http('/api/projects/import', { method: 'POST', body: data }),
   importChapters: (id, content) => http(`/api/projects/${id}/chapters/import`, { method: 'POST', body: { content } }),
@@ -55,6 +71,11 @@ export const api = {
   getKnowledge: (id) => http(`/api/projects/${id}/knowledge`),
   updateKnowledge: (id, kb) => http(`/api/projects/${id}/knowledge`, { method: 'PUT', body: kb }),
   exportMd: (id) => `/api/projects/${id}/export-md`,
+  exportJson: (id) => `/api/projects/${id}/export-json`,
+  exportSrt: (id) => `/api/projects/${id}/export-srt`,
+  exportEpisodeSrt: (id, episode) => `/api/projects/${id}/export-srt/${episode}`,
+  exportManifest: (id) => `/api/projects/${id}/export-manifest`,
+  exportDeliveryZip: (id) => `/api/projects/${id}/export-delivery.zip`,
   snapshot: (id, label) => http(`/api/projects/${id}/snapshot`, { method: 'POST', body: { label } }),
   getSnapshots: (id) => http(`/api/projects/${id}/snapshots`),
   restoreSnapshot: (id, snId) => http(`/api/projects/${id}/snapshots/${snId}/restore`, { method: 'POST' }),
@@ -65,8 +86,11 @@ export const api = {
   genImage: (prompt, negativePrompt, size, style, images) => http('/api/generate/image', { method: 'POST', body: { prompt, negativePrompt, size, visualStyle: style, images } }),
   genVideo: (params) => http('/api/generate/video', { method: 'POST', body: params }),
   getVideo: (id) => http('/api/generate/video/' + id),
-  preprocess: (content, onData, signal) => sse('/api/preprocess', { content }, onData, signal),
+  listJobs: (projectId) => http(`/api/projects/${projectId}/jobs`),
+  createJob: (projectId, job, expectedRevision) => http(`/api/projects/${projectId}/jobs`, { method: 'POST', body: { ...job, ...(expectedRevision === undefined ? {} : { expectedRevision }) } }),
+  updateJob: (projectId, jobId, patch, expectedRevision) => http(`/api/projects/${projectId}/jobs/${jobId}`, { method: 'PATCH', body: { ...patch, ...(expectedRevision === undefined ? {} : { expectedRevision }) } }),
+  preprocess: (content, projectId, scope, onData, signal) => sse('/api/preprocess', { content, projectId, sourceMode: scope?.mode || 'content', chapterId: scope?.mode === 'chapter' ? scope.chId : undefined }, onData, signal),
   analyze: (params, onData, signal) => sse('/api/analyze', params, onData, signal),
   analyzeAll: (params, onData, signal) => sse('/api/analyze-all', params, onData, signal),
-  checkConsistency: (results, knowledge, onData, signal) => sse('/api/check-consistency', { results, knowledge }, onData, signal),
+  checkConsistency: (projectId, results, knowledge, onData, signal) => sse('/api/check-consistency', { projectId, results, knowledge }, onData, signal),
 };
